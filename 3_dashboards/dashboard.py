@@ -94,6 +94,41 @@ left_chart, right_chart = st.columns(2)
 left_chart.plotly_chart(fig_category, use_container_width=True)
 right_chart.plotly_chart(fig_trend, use_container_width=True)
 
+st.markdown("### 🌍 Sales by Region")
+
+sales_region = (
+    df_selection.groupby("Region")["Sales"]
+    .sum()
+    .reset_index()
+)
+
+fig_region = px.bar(
+    sales_region,
+    x="Region",
+    y="Sales",
+    color="Region",
+    title="Sales by Region",
+    template="plotly_white"
+)
+
+
+st.markdown("### 📈 Monthly Profit Trend")
+
+profit_trend = df_selection.resample("M", on="Order.Date")["Profit"].sum().reset_index()
+
+fig_profit = px.line(
+    profit_trend,
+    x="Order.Date",
+    y="Profit",
+    markers=True,
+    title="Monthly Profit Trend",
+    template="plotly_white"
+)
+
+st.plotly_chart(fig_profit, use_container_width=True)
+
+st.plotly_chart(fig_region, use_container_width=True)
+
 # ---------------- TOP PRODUCTS ----------------
 st.markdown("### 🏆 Top 10 Products by Sales")
 
@@ -115,6 +150,24 @@ fig_products = px.bar(
 )
 
 st.plotly_chart(fig_products, use_container_width=True)
+
+st.markdown("## 📊 Key Business Metrics")
+
+col1, col2, col3, col4 = st.columns(4)
+
+col1.metric("💰 Total Sales", f"${total_sales:,.0f}")
+col2.metric("📈 Total Profit", f"${total_profit:,.0f}")
+col3.metric("🛒 Total Orders", total_orders)
+col4.metric("💳 Avg Order Value", f"${avg_order_value:,.2f}")
+
+st.sidebar.title("🔎 Dashboard Filters")
+
+st.markdown("---")
+st.markdown(
+    "Created by **Vivek Saha** | Data Analyst Portfolio Project"
+)
+
+
 
 # ---------------- DATA TABLE ----------------
 st.markdown("### 📄 Filtered Dataset")
