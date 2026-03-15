@@ -215,6 +215,14 @@ Possible improvements for this project include:
 
 ---
 
+## Skills Demonstrated
+
+• Data Cleaning
+• Exploratory Data Analysis
+• Data Visualization
+• Dashboard Development
+• Business Analysis
+
 ## Live Dashboard
 
 https://sales-performance-dashboard-kfyh3y4ibdsr6gka6yymla.streamlit.app/
