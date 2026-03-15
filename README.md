@@ -215,6 +215,49 @@ Possible improvements for this project include:
 
 ---
 
+## Live Dashboard
+
+https://sales-performance-dashboard-kfyh3y4ibdsr6gka6yymla.streamlit.app/
+
+## Project Workflow
+
+### 1. Data Collection
+The retail sales dataset was collected and stored in the project data directory. The dataset contains information such as order details, product categories, regional sales, and profit metrics.
+
+### 2. Data Loading
+The dataset was loaded into Python using the Pandas library through a reusable data loader module to ensure modular and maintainable code.
+
+### 3. Data Cleaning and Preprocessing
+The dataset was cleaned to ensure data quality. Key steps included:
+- Handling missing values
+- Removing duplicate records
+- Converting date columns into proper datetime format
+- Standardizing column names
+- Preparing the dataset for analysis
+
+### 4. Exploratory Data Analysis (EDA)
+Exploratory data analysis was conducted to understand sales patterns and business trends. This included:
+- Analyzing sales distribution across categories
+- Evaluating regional performance
+- Identifying top-performing products
+- Understanding sales trends over time
+
+### 5. Data Visualization
+Multiple visualizations were created using Plotly and Matplotlib to highlight key insights such as:
+- Monthly sales trends
+- Sales by product category
+- Regional sales distribution
+- Top 10 products by revenue
+
+### 6. Dashboard Development
+An interactive dashboard was developed using Streamlit to present key business metrics and visual insights. The dashboard includes:
+- KPI metrics (Total Sales, Profit, Orders)
+- Interactive filters for Region and Category
+- Dynamic charts for trend analysis and product performance
+
+### 7. Deployment
+The dashboard application was deployed using Streamlit Cloud, enabling users to interact with the analysis through a web-based interface.
+
 # 👨‍💻 Author
 
 Vivek Saha
