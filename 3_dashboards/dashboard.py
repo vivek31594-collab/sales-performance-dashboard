@@ -3,7 +3,20 @@ import pandas as pd
 import plotly.express as px
 
 # ---------------- PAGE CONFIG ----------------
-st.set_page_config(page_title="Sales Performance Dashboard", layout="wide")
+st.set_page_config(
+    page_title="Sales Performance Dashboard",
+    page_icon="📊",
+    layout="wide"
+)
+
+# ---------------- LOAD DATA ----------------
+@st.cache_data
+def load_data():
+    df = pd.read_csv("1_data/processed/cleaned_sales.csv")
+    df["Order.Date"] = pd.to_datetime(df["Order.Date"])
+    return df
+
+df = load_data()
 
 # ---------------- TITLE ----------------
 st.markdown("""
@@ -14,87 +27,111 @@ st.markdown("""
 
 st.markdown("---")
 
-# ---------------- LOAD DATA ----------------
-df = pd.read_csv("1_data/processed/cleaned_sales.csv")
+# ---------------- SIDEBAR ----------------
+st.sidebar.title("🔎 Dashboard Filters")
 
-# Convert date column
-df["Order.Date"] = pd.to_datetime(df["Order.Date"])
+# Date filter
+min_date = df["Order.Date"].min()
+max_date = df["Order.Date"].max()
 
-# ---------------- SIDEBAR FILTERS ----------------
-st.sidebar.header("Filters")
+date_range = st.sidebar.date_input(
+    "Select Date Range",
+    [min_date, max_date],
+    min_value=min_date,
+    max_value=max_date
+)
 
+# Region filter
 region_list = st.sidebar.multiselect(
     "Select Region",
     options=df["Region"].unique(),
     default=df["Region"].unique()
 )
 
+# Category filter
 category_list = st.sidebar.multiselect(
     "Select Category",
     options=df["Category"].unique(),
     default=df["Category"].unique()
 )
 
-# Filter dataframe
-df_selection = df.query(
-    "Region == @region_list & Category == @category_list"
-)
+# ---------------- FILTER DATA ----------------
+df_selection = df[
+    (df["Region"].isin(region_list)) &
+    (df["Category"].isin(category_list)) &
+    (df["Order.Date"] >= pd.to_datetime(date_range[0])) &
+    (df["Order.Date"] <= pd.to_datetime(date_range[1]))
+]
+
+if df_selection.empty:
+    st.warning("No data available for selected filters.")
+    st.stop()
 
 # ---------------- KPI METRICS ----------------
-st.markdown("### 📌 Key Performance Indicators")
+st.markdown("## 📌 Key Performance Indicators")
 
-total_sales = int(df_selection["Sales"].sum())
-total_profit = int(df_selection["Profit"].sum())
+total_sales = df_selection["Sales"].sum()
+total_profit = df_selection["Profit"].sum()
 total_orders = df_selection["Order.ID"].nunique()
 
-avg_order_value = total_sales / total_orders if total_orders > 0 else 0
+avg_order_value = total_sales / total_orders
+profit_margin = (total_profit / total_sales) * 100
 
-col1, col2, col3, col4 = st.columns(4)
+col1, col2, col3, col4, col5 = st.columns(5)
 
-with col1:
-    st.metric("Total Sales", f"${total_sales:,}")
-
-with col2:
-    st.metric("Total Profit", f"${total_profit:,}")
-
-with col3:
-    st.metric("Total Orders", total_orders)
-
-with col4:
-    st.metric("Avg Order Value", f"${avg_order_value:.2f}")
+col1.metric("💰 Total Sales", f"${total_sales:,.0f}")
+col2.metric("📈 Total Profit", f"${total_profit:,.0f}")
+col3.metric("🛒 Total Orders", total_orders)
+col4.metric("💳 Avg Order Value", f"${avg_order_value:,.2f}")
+col5.metric("📊 Profit Margin", f"{profit_margin:.2f}%")
 
 st.markdown("---")
 
-# ---------------- CHART SECTION ----------------
-st.markdown("### 📈 Sales Analysis")
+# ---------------- CHARTS ----------------
+st.markdown("## 📈 Sales Analysis")
 
 # Sales by Category
+sales_category = (
+    df_selection.groupby("Category")["Sales"]
+    .sum()
+    .sort_values(ascending=False)
+    .reset_index()
+)
+
 fig_category = px.bar(
-    df_selection.groupby("Category")["Sales"].sum().reset_index(),
+    sales_category,
     x="Category",
     y="Sales",
+    color="Category",
     title="Sales by Category",
     template="plotly_white"
 )
 
 # Monthly Sales Trend
-sales_trend = df_selection.resample("M", on="Order.Date")["Sales"].sum().reset_index()
+sales_trend = (
+    df_selection
+    .resample("M", on="Order.Date")["Sales"]
+    .sum()
+    .reset_index()
+)
 
 fig_trend = px.line(
     sales_trend,
     x="Order.Date",
     y="Sales",
+    markers=True,
     title="Monthly Sales Trend",
     template="plotly_white"
 )
 
-# Display charts
+# Chart layout
 left_chart, right_chart = st.columns(2)
 
 left_chart.plotly_chart(fig_category, use_container_width=True)
 right_chart.plotly_chart(fig_trend, use_container_width=True)
 
-st.markdown("### 🌍 Sales by Region")
+# ---------------- REGION SALES ----------------
+st.markdown("## 🌍 Sales by Region")
 
 sales_region = (
     df_selection.groupby("Region")["Sales"]
@@ -111,10 +148,17 @@ fig_region = px.bar(
     template="plotly_white"
 )
 
+st.plotly_chart(fig_region, use_container_width=True)
 
-st.markdown("### 📈 Monthly Profit Trend")
+# ---------------- PROFIT TREND ----------------
+st.markdown("## 📈 Monthly Profit Trend")
 
-profit_trend = df_selection.resample("M", on="Order.Date")["Profit"].sum().reset_index()
+profit_trend = (
+    df_selection
+    .resample("M", on="Order.Date")["Profit"]
+    .sum()
+    .reset_index()
+)
 
 fig_profit = px.line(
     profit_trend,
@@ -127,10 +171,8 @@ fig_profit = px.line(
 
 st.plotly_chart(fig_profit, use_container_width=True)
 
-st.plotly_chart(fig_region, use_container_width=True)
-
 # ---------------- TOP PRODUCTS ----------------
-st.markdown("### 🏆 Top 10 Products by Sales")
+st.markdown("## 🏆 Top 10 Products by Sales")
 
 top_products = (
     df_selection.groupby("Product.Name")["Sales"]
@@ -145,39 +187,48 @@ fig_products = px.bar(
     x="Sales",
     y="Product.Name",
     orientation="h",
+    color="Sales",
     title="Top 10 Products",
     template="plotly_white"
 )
 
 st.plotly_chart(fig_products, use_container_width=True)
 
-st.markdown("## 📊 Key Business Metrics")
+# ---------------- SEGMENT PIE CHART ----------------
+st.markdown("## 👥 Sales by Segment")
 
-col1, col2, col3, col4 = st.columns(4)
-
-col1.metric("💰 Total Sales", f"${total_sales:,.0f}")
-col2.metric("📈 Total Profit", f"${total_profit:,.0f}")
-col3.metric("🛒 Total Orders", total_orders)
-col4.metric("💳 Avg Order Value", f"${avg_order_value:,.2f}")
-
-st.sidebar.title("🔎 Dashboard Filters")
-
-st.markdown("---")
-st.markdown(
-    "Created by **Vivek Saha** | Data Analyst Portfolio Project"
+sales_segment = (
+    df_selection.groupby("Segment")["Sales"]
+    .sum()
+    .reset_index()
 )
 
+fig_segment = px.pie(
+    sales_segment,
+    names="Segment",
+    values="Sales",
+    title="Sales Distribution by Segment"
+)
 
+st.plotly_chart(fig_segment, use_container_width=True)
+
+# ---------------- DOWNLOAD BUTTON ----------------
+st.download_button(
+    label="📥 Download Filtered Data",
+    data=df_selection.to_csv(index=False),
+    file_name="filtered_sales_data.csv",
+    mime="text/csv"
+)
 
 # ---------------- DATA TABLE ----------------
-st.markdown("### 📄 Filtered Dataset")
+st.markdown("## 📄 Filtered Dataset")
 
-with st.expander("View Filtered Data Table"):
+with st.expander("View Data"):
     st.dataframe(df_selection)
 
 # ---------------- BUSINESS INSIGHTS ----------------
 st.markdown("---")
-st.markdown("### 📊 Key Business Insights")
+st.markdown("## 📊 Key Business Insights")
 
 st.write("""
 • Technology category generates the highest revenue.
@@ -186,5 +237,15 @@ st.write("""
 
 • Some products generate high sales but relatively lower profit margins.
 
-• Monthly sales trend helps identify seasonal demand patterns.
+• Monthly trends show seasonal demand fluctuations.
+
+• Corporate segment contributes strongly to revenue.
+""")
+
+# ---------------- FOOTER ----------------
+st.markdown("""
+---
+📊 **Sales Performance Dashboard**  
+Created by **Vivek Saha**  
+Data Analyst Portfolio Project
 """)
