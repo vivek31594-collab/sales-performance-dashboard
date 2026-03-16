@@ -194,23 +194,27 @@ fig_products = px.bar(
 
 st.plotly_chart(fig_products, use_container_width=True)
 
-# ---------------- SEGMENT PIE CHART ----------------
-st.markdown("## 👥 Sales by Segment")
+# ---------------- SUB-CATEGORY PIE CHART ----------------
+st.markdown("## 👥 Sales Distribution by Sub-Category")
 
-sales_segment = (
-    df_selection.groupby("Segment")["Sales"]
+# Grouping by Sub-Category instead of Segment
+sales_subcat_pie = (
+    df_selection.groupby("Sub.Category")["Sales"]
     .sum()
     .reset_index()
 )
 
-fig_segment = px.pie(
-    sales_segment,
-    names="Segment",
+fig_subcat_pie = px.pie(
+    sales_subcat_pie,
+    names="Sub.Category",
     values="Sales",
-    title="Sales Distribution by Segment"
+    title="Sales % by Sub-Category",
+    hole=0.4 # This makes it a Donut chart, which looks cleaner
 )
 
-st.plotly_chart(fig_segment, use_container_width=True)
+# Use the existing layout or a standalone chart
+st.plotly_chart(fig_subcat_pie, use_container_width=True)
+
 
 # ---------------- DOWNLOAD BUTTON ----------------
 st.download_button(
