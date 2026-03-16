@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from prophet import Prophet
+
 
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(
@@ -142,25 +142,35 @@ left_chart, right_chart = st.columns(2)
 left_chart.plotly_chart(fig_category, use_container_width=True)
 right_chart.plotly_chart(fig_trend, use_container_width=True)
 
+
+
 # ---------------- SALES FORECAST ----------------
 st.markdown("## 🔮 6-Month Sales Forecast")
-forecast_df = df_selection.groupby("Order.Date")["Sales"].sum().reset_index()
+
+# Aggregate sales monthly for better forecasting
+forecast_df = df_selection.groupby(pd.Grouper(key='Order.Date', freq='M'))['Sales'].sum().reset_index()
 forecast_df.rename(columns={"Order.Date": "ds", "Sales": "y"}, inplace=True)
 
+# Drop NaNs just in case
+forecast_df = forecast_df.dropna(subset=['y'])
+
+# Check if there are at least 2 data points
 if len(forecast_df) < 2:
-    st.warning("Not enough data to generate a 6-month sales forecast. Try adjusting the filters.")
+    st.warning("Not enough historical data to generate a 6-month forecast. Try widening the date range or including more regions/categories.")
 else:
+    from prophet import Prophet
     model = Prophet(yearly_seasonality=True, weekly_seasonality=False, daily_seasonality=False)
     model.fit(forecast_df)
 
     future = model.make_future_dataframe(periods=6, freq='M')
     forecast = model.predict(future)
 
+    # Plot forecast
     fig_forecast = px.line(
         forecast,
         x="ds",
         y="yhat",
-        title="Sales Forecast (Next 6 Months)",
+        title="6-Month Sales Forecast",
         template="plotly_white"
     )
     fig_forecast.add_traces([
