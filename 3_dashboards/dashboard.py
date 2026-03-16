@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
+from prophet import Prophet
+
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(
     page_title="Sales Performance Dashboard",
@@ -24,7 +26,6 @@ st.markdown("""
 📊 Sales Performance Analytics Dashboard
 </h1>
 """, unsafe_allow_html=True)
-
 st.markdown("---")
 
 # ---------------- SIDEBAR ----------------
@@ -33,7 +34,6 @@ st.sidebar.title("🔎 Dashboard Filters")
 # Date filter
 min_date = df["Order.Date"].min()
 max_date = df["Order.Date"].max()
-
 date_range = st.sidebar.date_input(
     "Select Date Range",
     [min_date, max_date],
@@ -55,6 +55,9 @@ category_list = st.sidebar.multiselect(
     default=df["Category"].unique()
 )
 
+# Top N Products selection
+top_n = st.sidebar.slider("Select Top N Products", min_value=5, max_value=20, value=10)
+
 # ---------------- FILTER DATA ----------------
 df_selection = df[
     (df["Region"].isin(region_list)) &
@@ -73,31 +76,46 @@ st.markdown("## 📌 Key Performance Indicators")
 total_sales = df_selection["Sales"].sum()
 total_profit = df_selection["Profit"].sum()
 total_orders = df_selection["Order.ID"].nunique()
-
 avg_order_value = total_sales / total_orders
 profit_margin = (total_profit / total_sales) * 100
 
-col1, col2, col3, col4, col5 = st.columns(5)
+# YoY Growth (if data spans multiple years)
+df_selection['Year'] = df_selection['Order.Date'].dt.year
+sales_by_year = df_selection.groupby('Year')['Sales'].sum()
+yoy_growth = sales_by_year.pct_change().iloc[-1] if len(sales_by_year) > 1 else 0
 
+# Category profit %
+category_profit = (df_selection.groupby('Category')['Profit'].sum() /
+                   df_selection.groupby('Category')['Sales'].sum() * 100).reset_index()
+
+# Region contribution %
+region_contribution = (df_selection.groupby('Region')['Sales'].sum() / total_sales * 100).reset_index()
+
+col1, col2, col3, col4, col5, col6 = st.columns(6)
 col1.metric("💰 Total Sales", f"${total_sales:,.0f}")
 col2.metric("📈 Total Profit", f"${total_profit:,.0f}")
 col3.metric("🛒 Total Orders", total_orders)
 col4.metric("💳 Avg Order Value", f"${avg_order_value:,.2f}")
 col5.metric("📊 Profit Margin", f"{profit_margin:.2f}%")
+col6.metric("📈 YoY Growth", f"{yoy_growth:.2%}")
 
 st.markdown("---")
+
+# ---------------- EXECUTIVE SUMMARY ----------------
+st.markdown("## 📄 Executive Summary")
+st.markdown("""
+- Technology category generates the highest revenue.
+- West region contributes significantly to total sales.
+- Some products generate high sales but relatively lower profit margins.
+- Monthly trends show seasonal demand fluctuations.
+- Corporate segment contributes strongly to revenue.
+""")
 
 # ---------------- CHARTS ----------------
 st.markdown("## 📈 Sales Analysis")
 
 # Sales by Category
-sales_category = (
-    df_selection.groupby("Category")["Sales"]
-    .sum()
-    .sort_values(ascending=False)
-    .reset_index()
-)
-
+sales_category = df_selection.groupby("Category")["Sales"].sum().sort_values(ascending=False).reset_index()
 fig_category = px.bar(
     sales_category,
     x="Category",
@@ -108,13 +126,7 @@ fig_category = px.bar(
 )
 
 # Monthly Sales Trend
-sales_trend = (
-    df_selection
-    .resample("M", on="Order.Date")["Sales"]
-    .sum()
-    .reset_index()
-)
-
+sales_trend = df_selection.resample("M", on="Order.Date")["Sales"].sum().reset_index()
 fig_trend = px.line(
     sales_trend,
     x="Order.Date",
@@ -124,42 +136,62 @@ fig_trend = px.line(
     template="plotly_white"
 )
 
-# Chart layout
-left_chart, right_chart = st.columns(2)
+# ---------------- SALES FORECAST ----------------
+st.markdown("## 🔮 6-Month Sales Forecast")
 
+# Prepare data for Prophet
+forecast_df = df_selection.groupby("Order.Date")["Sales"].sum().reset_index()
+forecast_df.rename(columns={"Order.Date": "ds", "Sales": "y"}, inplace=True)
+
+# Initialize Prophet model
+model = Prophet(yearly_seasonality=True, weekly_seasonality=False, daily_seasonality=False)
+model.fit(forecast_df)
+
+# Make future dataframe for next 6 months
+future = model.make_future_dataframe(periods=6, freq='M')
+forecast = model.predict(future)
+
+# Plot forecast using plotly
+fig_forecast = px.line(
+    forecast,
+    x="ds",
+    y="yhat",
+    title="Sales Forecast (Next 6 Months)",
+    template="plotly_white"
+)
+
+# Add upper and lower bounds as shaded area
+fig_forecast.add_traces([
+    px.line(forecast, x='ds', y='yhat_upper', line=dict(color='lightgreen', dash='dash')).data[0],
+    px.line(forecast, x='ds', y='yhat_lower', line=dict(color='lightcoral', dash='dash')).data[0]
+])
+
+st.plotly_chart(fig_forecast, use_container_width=True)
+
+# Optional: Show forecast table
+with st.expander("View Forecast Data"):
+    st.dataframe(forecast[['ds','yhat','yhat_lower','yhat_upper']].tail(12))
+
+# Layout: side by side
+left_chart, right_chart = st.columns(2)
 left_chart.plotly_chart(fig_category, use_container_width=True)
 right_chart.plotly_chart(fig_trend, use_container_width=True)
 
 # ---------------- REGION SALES ----------------
 st.markdown("## 🌍 Sales by Region")
-
-sales_region = (
-    df_selection.groupby("Region")["Sales"]
-    .sum()
-    .reset_index()
-)
-
 fig_region = px.bar(
-    sales_region,
+    region_contribution,
     x="Region",
     y="Sales",
     color="Region",
-    title="Sales by Region",
+    title="Region Contribution % to Total Sales",
     template="plotly_white"
 )
-
 st.plotly_chart(fig_region, use_container_width=True)
 
 # ---------------- PROFIT TREND ----------------
-st.markdown("## 📈 Monthly Profit Trend")
-
-profit_trend = (
-    df_selection
-    .resample("M", on="Order.Date")["Profit"]
-    .sum()
-    .reset_index()
-)
-
+st.markdown("## 💹 Monthly Profit Trend")
+profit_trend = df_selection.resample("M", on="Order.Date")["Profit"].sum().reset_index()
 fig_profit = px.line(
     profit_trend,
     x="Order.Date",
@@ -168,53 +200,33 @@ fig_profit = px.line(
     title="Monthly Profit Trend",
     template="plotly_white"
 )
-
 st.plotly_chart(fig_profit, use_container_width=True)
 
 # ---------------- TOP PRODUCTS ----------------
-st.markdown("## 🏆 Top 10 Products by Sales")
-
-top_products = (
-    df_selection.groupby("Product.Name")["Sales"]
-    .sum()
-    .sort_values(ascending=False)
-    .head(10)
-    .reset_index()
-)
-
+st.markdown(f"## 🏆 Top {top_n} Products by Sales")
+top_products = df_selection.groupby("Product.Name")["Sales"].sum().sort_values(ascending=False).head(top_n).reset_index()
 fig_products = px.bar(
     top_products,
     x="Sales",
     y="Product.Name",
     orientation="h",
     color="Sales",
-    title="Top 10 Products",
+    title=f"Top {top_n} Products",
     template="plotly_white"
 )
-
 st.plotly_chart(fig_products, use_container_width=True)
 
 # ---------------- SUB-CATEGORY PIE CHART ----------------
 st.markdown("## 👥 Sales Distribution by Sub-Category")
-
-# Grouping by Sub-Category instead of Segment
-sales_subcat_pie = (
-    df_selection.groupby("Sub.Category")["Sales"]
-    .sum()
-    .reset_index()
-)
-
+sales_subcat_pie = df_selection.groupby("Sub.Category")["Sales"].sum().reset_index()
 fig_subcat_pie = px.pie(
     sales_subcat_pie,
     names="Sub.Category",
     values="Sales",
     title="Sales % by Sub-Category",
-    hole=0.4 # This makes it a Donut chart, which looks cleaner
+    hole=0.4
 )
-
-# Use the existing layout or a standalone chart
 st.plotly_chart(fig_subcat_pie, use_container_width=True)
-
 
 # ---------------- DOWNLOAD BUTTON ----------------
 st.download_button(
@@ -226,25 +238,8 @@ st.download_button(
 
 # ---------------- DATA TABLE ----------------
 st.markdown("## 📄 Filtered Dataset")
-
 with st.expander("View Data"):
     st.dataframe(df_selection)
-
-# ---------------- BUSINESS INSIGHTS ----------------
-st.markdown("---")
-st.markdown("## 📊 Key Business Insights")
-
-st.write("""
-• Technology category generates the highest revenue.
-
-• West region contributes significantly to total sales.
-
-• Some products generate high sales but relatively lower profit margins.
-
-• Monthly trends show seasonal demand fluctuations.
-
-• Corporate segment contributes strongly to revenue.
-""")
 
 # ---------------- FOOTER ----------------
 st.markdown("""
