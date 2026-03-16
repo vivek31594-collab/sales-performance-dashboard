@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-
 from prophet import Prophet
 
 # ---------------- PAGE CONFIG ----------------
@@ -87,9 +86,11 @@ yoy_growth = sales_by_year.pct_change().iloc[-1] if len(sales_by_year) > 1 else 
 # Category profit %
 category_profit = (df_selection.groupby('Category')['Profit'].sum() /
                    df_selection.groupby('Category')['Sales'].sum() * 100).reset_index()
+category_profit.columns = ['Category', 'Profit_Percent']
 
 # Region contribution %
 region_contribution = (df_selection.groupby('Region')['Sales'].sum() / total_sales * 100).reset_index()
+region_contribution.columns = ['Region', 'Contribution_Percent']
 
 col1, col2, col3, col4, col5, col6 = st.columns(6)
 col1.metric("💰 Total Sales", f"${total_sales:,.0f}")
@@ -136,80 +137,25 @@ fig_trend = px.line(
     template="plotly_white"
 )
 
-# ---------------- SALES FORECAST ----------------
-st.markdown("## 🔮 6-Month Sales Forecast")
-
-# Prepare data for Prophet
-forecast_df = df_selection.groupby("Order.Date")["Sales"].sum().reset_index()
-forecast_df.rename(columns={"Order.Date": "ds", "Sales": "y"}, inplace=True)
-
-# Initialize Prophet model
-model = Prophet(yearly_seasonality=True, weekly_seasonality=False, daily_seasonality=False)
-model.fit(forecast_df)
-
-# Make future dataframe for next 6 months
-future = model.make_future_dataframe(periods=6, freq='M')
-forecast = model.predict(future)
-
-# Plot forecast using plotly
-fig_forecast = px.line(
-    forecast,
-    x="ds",
-    y="yhat",
-    title="Sales Forecast (Next 6 Months)",
-    template="plotly_white"
-)
-
-# Add upper and lower bounds as shaded area
-fig_forecast.add_traces([
-    px.line(forecast, x='ds', y='yhat_upper', line=dict(color='lightgreen', dash='dash')).data[0],
-    px.line(forecast, x='ds', y='yhat_lower', line=dict(color='lightcoral', dash='dash')).data[0]
-])
-
-st.plotly_chart(fig_forecast, use_container_width=True)
-
-# Optional: Show forecast table
-with st.expander("View Forecast Data"):
-    st.dataframe(forecast[['ds','yhat','yhat_lower','yhat_upper']].tail(12))
-
 # Layout: side by side
 left_chart, right_chart = st.columns(2)
 left_chart.plotly_chart(fig_category, use_container_width=True)
 right_chart.plotly_chart(fig_trend, use_container_width=True)
 
-# ---------------- REGION SALES ----------------
-st.markdown("## 🌍 Sales by Region")
-fig_region = px.bar(
-    region_contribution,
-    x="Region",
-    y="Sales",
-    color="Region",
-    title="Region Contribution % to Total Sales",
-    template="plotly_white"
-)
-st.plotly_chart(fig_region, use_container_width=True)
-from prophet import Prophet
-
 # ---------------- SALES FORECAST ----------------
 st.markdown("## 🔮 6-Month Sales Forecast")
-
-# Prepare data for Prophet
 forecast_df = df_selection.groupby("Order.Date")["Sales"].sum().reset_index()
 forecast_df.rename(columns={"Order.Date": "ds", "Sales": "y"}, inplace=True)
 
-# Check if enough data
 if len(forecast_df) < 2:
     st.warning("Not enough data to generate a 6-month sales forecast. Try adjusting the filters.")
 else:
-    # Initialize and fit Prophet model
     model = Prophet(yearly_seasonality=True, weekly_seasonality=False, daily_seasonality=False)
     model.fit(forecast_df)
 
-    # Make future dataframe for next 6 months
     future = model.make_future_dataframe(periods=6, freq='M')
     forecast = model.predict(future)
 
-    # Plot forecast
     fig_forecast = px.line(
         forecast,
         x="ds",
@@ -217,18 +163,26 @@ else:
         title="Sales Forecast (Next 6 Months)",
         template="plotly_white"
     )
-    
-    # Optional: add upper/lower bounds
     fig_forecast.add_traces([
         px.line(forecast, x='ds', y='yhat_upper', line=dict(color='lightgreen', dash='dash')).data[0],
         px.line(forecast, x='ds', y='yhat_lower', line=dict(color='lightcoral', dash='dash')).data[0]
     ])
-
     st.plotly_chart(fig_forecast, use_container_width=True)
 
-    # Show forecast table
     with st.expander("View Forecast Data"):
         st.dataframe(forecast[['ds','yhat','yhat_lower','yhat_upper']].tail(12))
+
+# ---------------- REGION SALES ----------------
+st.markdown("## 🌍 Sales by Region")
+fig_region = px.bar(
+    region_contribution,
+    x="Region",
+    y="Contribution_Percent",
+    color="Region",
+    title="Region Contribution % to Total Sales",
+    template="plotly_white"
+)
+st.plotly_chart(fig_region, use_container_width=True)
 
 # ---------------- PROFIT TREND ----------------
 st.markdown("## 💹 Monthly Profit Trend")
