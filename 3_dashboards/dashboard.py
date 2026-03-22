@@ -163,7 +163,7 @@ with tab3:
 
 # ---------------- SEGMENT ----------------
 with tab4:
-    seg = df_selection.groupby("Segment")["Sales"].sum().reset_index()
+    seg = df_selection.groupby("Market")["Sales"].sum().reset_index()
     fig = px.bar(seg, x="Segment", y="Sales", color="Segment")
     st.plotly_chart(fig, use_container_width=True)
 
