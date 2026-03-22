@@ -111,6 +111,12 @@ sales-performance-dashboard/
 * Target **high-value customer segments**
 
 ---
+## 🧠 Business Decisions Enabled
+
+- 📈 Increase inventory in high-performing regions to avoid stockouts
+- 💰 Reduce discounts in low-margin categories to improve profitability
+- 📦 Focus marketing on top-selling products for higher ROI
+- 📉 Identify and fix loss-making products to reduce revenue leakage
 
 ## 📷 Dashboard Preview
 
