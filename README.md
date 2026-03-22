@@ -90,11 +90,15 @@ sales-performance-dashboard/
 
 ## 🔍 Key Business Insights
 
-* 📍 **Top Region:Central contributes 19.61 % of total revenue
-* 🏆 **Top 5 products generate 5.17% of total sales
-* 📅 **Peak Month: 3 with sales ₹1,283,051.00
-* ⚠️ **Low Margin Category:** Ofice Supplies has high sales but lower profitability
-* 👥 **Top Segment:APAC contributes the most revenue
+📍 Top Region: Central contributes 19.61% of total revenue  
+
+🏆 Top 5 Products: Top 5 products generate 5.17% of total sales  
+
+📅 Peak Sales Period: March shows the highest sales trend, indicating seasonal demand  
+
+⚠️ Low Margin Category: Office Supplies has high sales but lower profitability  
+
+👥 Top Market: APAC contributes the highest revenue.
 
 ---
 
