@@ -3,5 +3,3 @@ pandas
 plotly
 openpyxl
 prophet
-matplotlib
-seaborn
