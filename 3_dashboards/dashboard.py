@@ -164,7 +164,7 @@ with tab3:
 # ---------------- SEGMENT ----------------
 with tab4:
     seg = df_selection.groupby("Market")["Sales"].sum().reset_index()
-    fig = px.bar(seg, x="Segment", y="Sales", color="Segment")
+    fig = px.bar(seg, x="Market", y="Sales", color="Market")
     st.plotly_chart(fig, use_container_width=True)
 
 # ---------------- FORECAST ----------------
