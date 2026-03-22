@@ -69,11 +69,11 @@ sales-performance-dashboard/
 
 ## 📊 Key KPIs
 
-* 💰 Total Sales: ₹ **[1283051]**
-* 📈 Total Profit: ₹ **[342,113]** 
-* 📦 Total Orders: **[6395]**
-* 📊 Profit Margin: **[26.6 %]**
-* 🧮 Average Order Value: ₹ **[200.63]**
+* 💰 Total Sales: ₹ 1283051
+* 📈 Total Profit: ₹ 342,113 
+* 📦 Total Orders: 6395
+* 📊 Profit Margin: 26.6 %]
+* 🧮 Average Order Value: ₹ 200.63
 
 ---
 
@@ -90,11 +90,11 @@ sales-performance-dashboard/
 
 ## 🔍 Key Business Insights
 
-* 📍 **Top Region:** [Region Name] contributes **~[X%] of total revenue**
-* 🏆 **Top Products:** Top 5 products generate **~[X%] of total sales**
-* 📅 **Peak Sales Period:** Highest sales observed in **[Month/Quarter]**
-* ⚠️ **Low Margin Category:** [Category Name] has high sales but lower profitability
-* 👥 **Top Segment:** [Segment Name] contributes the most revenue
+* 📍 **Top Region:Central contributes 19.61 % of total revenue
+* 🏆 **Top 5 products generate 5.17% of total sales
+* 📅 **Peak Month: 3 with sales ₹1,283,051.00
+* ⚠️ **Low Margin Category:** Ofice Supplies has high sales but lower profitability
+* 👥 **Top Segment:APAC contributes the most revenue
 
 ---
 
