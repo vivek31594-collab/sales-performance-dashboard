@@ -79,8 +79,6 @@ sales-performance-dashboard/
 
 ## 📈 Dashboard Features
 
-## 📈 Dashboard Features
-
 - Interactive KPI metrics (Sales, Profit, Orders, Margin)
 - Dynamic filters (Region, Category, Date)
 - Root cause analysis (Sub-category profit breakdown)
@@ -159,10 +157,11 @@ streamlit run dashboards/dashboard.py
 
 ## 🔮 Future Improvements
 
-* Sales forecasting (ML models)
-* Customer segmentation (RFM)
-* Cloud deployment
-* Real-time data integration
+- Customer segmentation using RFM analysis
+- Advanced forecasting with ARIMA / ML models
+- Real-time dashboard using streaming data
+- Integration with SQL databases
+- Deployment on cloud (AWS / Azure)
 
 ---
 
