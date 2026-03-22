@@ -34,6 +34,14 @@ This project converts raw sales data into **clear, actionable insights**.
 
 ---
 
+## 🚀 What Makes This Project Unique
+
+- Combines data analysis + business decision-making
+- Includes root cause analysis for profit issues
+- Detects loss-making products (real business problem)
+- Integrates forecasting for future planning
+- Provides actionable recommendations, not just visualizations
+
 ## 🛠️ Tech Stack
 
 * Python (Pandas, NumPy)
@@ -48,14 +56,15 @@ This project converts raw sales data into **clear, actionable insights**.
 
 ```
 sales-performance-dashboard/
-├── data/
-├── notebooks/
-├── dashboards/
+├── 1_data/
+├── 2_notebooks/
+├── 3_dashboards/
+├── 4_sql/              
+│   └── sql_analysis.sql
 ├── utils/
 ├── images/
 ├── requirements.txt
 ├── README.md
-```
 
 ---
 
@@ -89,6 +98,13 @@ sales-performance-dashboard/
 - Segment-wise performance insights
 - 6-month sales forecasting
 - Automated business recommendations.
+
+## 🗄️ SQL Analysis
+
+Performed SQL-based analysis to:
+- Identify top-performing regions
+- Analyze category profitability
+- Detect loss-making products
 
 ## 🔍 Key Business Insights
 
