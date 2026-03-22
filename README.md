@@ -1,6 +1,6 @@
 # 🚀 Sales Intelligence & Decision Support System (End-to-End Data Analytics Project)
 
-This project goes beyond visualization by identifying profit leakage, analyzing business drivers, and enabling data-driven decision-making.
+This project goes beyond visualization by identifying profit leakage, analyzing business drivers, and enabling data-driven decision-making for business growth.
 
 ---
 
