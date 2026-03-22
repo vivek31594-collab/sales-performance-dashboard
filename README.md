@@ -102,6 +102,8 @@ sales-performance-dashboard/
 
 👥 Top Market: APAC contributes the highest revenue.
 
+💸 Higher discounts observed to reduce profitability significantly where in readme to add it.
+
 ---
 
 ## 📌 Business Recommendations
