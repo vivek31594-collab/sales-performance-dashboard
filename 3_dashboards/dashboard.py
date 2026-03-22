@@ -97,6 +97,33 @@ if yoy < 0:
 
 st.success(f"Focus marketing and inventory on {top_region} region")
 
+# ---------------- ROOT CAUSE ANALYSIS ----------------
+st.markdown("## 🔍 Root Cause Analysis")
+
+subcat_profit = df_selection.groupby("Sub.Category")["Profit"].sum().reset_index()
+low_profit_subcat = subcat_profit.sort_values(by="Profit").head(5)
+
+st.write("### ⚠️ Lowest Profit Sub-Categories")
+st.dataframe(low_profit_subcat)
+
+if not low_profit_subcat.empty:
+    worst_sub = low_profit_subcat.iloc[0]["Sub.Category"]
+    st.error(f"Major profit leakage is coming from '{worst_sub}' sub-category")
+
+# ---------------- PROFIT VS SALES ----------------
+st.markdown("## 📊 Profit vs Sales Analysis")
+
+fig_scatter = px.scatter(
+    df_selection,
+    x="Sales",
+    y="Profit",
+    color="Category",
+    hover_data=["Product.Name"]
+)
+
+st.plotly_chart(fig_scatter, use_container_width=True)
+st.info("High sales but low profit products indicate pricing or cost issues.")
+
 # ---------------- TABS ----------------
 tab1, tab2, tab3, tab4, tab5 = st.tabs(
     ["📈 Sales", "🌍 Region", "📦 Products", "👥 Segment", "🔮 Forecast"]
@@ -130,7 +157,6 @@ with tab3:
     fig = px.bar(top_products, x="Sales", y="Product.Name", orientation="h", color="Sales")
     st.plotly_chart(fig, use_container_width=True)
 
-    # LOSS PRODUCTS
     st.markdown("### ❌ Loss Making Products")
     loss = df_selection[df_selection["Profit"] < 0]
     st.dataframe(loss[["Product.Name", "Sales", "Profit"]].head(10))
@@ -164,6 +190,8 @@ with tab5:
 
         fig = px.line(forecast, x="ds", y="yhat")
         st.plotly_chart(fig, use_container_width=True)
+
+        st.success("Use forecast for demand planning and inventory optimization.")
 
 # ---------------- DOWNLOAD ----------------
 st.download_button(
