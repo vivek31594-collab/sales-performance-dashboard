@@ -69,11 +69,11 @@ sales-performance-dashboard/
 
 ## 📊 Key KPIs
 
-* 💰 Total Sales: ₹ **[ADD YOUR VALUE]**
-* 📈 Total Profit: ₹ **[ADD YOUR VALUE]**
-* 📦 Total Orders: **[ADD YOUR VALUE]**
-* 📊 Profit Margin: **[ADD %]**
-* 🧮 Average Order Value: ₹ **[ADD VALUE]**
+* 💰 Total Sales: ₹ **[1283051]**
+* 📈 Total Profit: ₹ **[342,113]** 
+* 📦 Total Orders: **[6395]**
+* 📊 Profit Margin: **[26.6 %]**
+* 🧮 Average Order Value: ₹ **[200.63]**
 
 ---
 
