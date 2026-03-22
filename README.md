@@ -79,13 +79,16 @@ sales-performance-dashboard/
 
 ## 📈 Dashboard Features
 
-* KPI cards (Sales, Profit, Orders)
-* Monthly trend analysis
-* Region-wise performance
-* Category & product insights
-* Interactive filters
+## 📈 Dashboard Features
 
----
+- Interactive KPI metrics (Sales, Profit, Orders, Margin)
+- Dynamic filters (Region, Category, Date)
+- Root cause analysis (Sub-category profit breakdown)
+- Profit vs Sales analysis (identifying low-margin products)
+- Loss-making product detection
+- Segment-wise performance insights
+- 6-month sales forecasting
+- Automated business recommendations.
 
 ## 🔍 Key Business Insights
 
@@ -117,6 +120,14 @@ sales-performance-dashboard/
 ```
 
 ---
+
+## 🚀 Advanced Analytics Features
+
+- 🔍 Root Cause Analysis to identify profit leakage
+- 📉 Loss-making product detection
+- 📊 Profit vs Sales relationship analysis
+- 🔮 Sales forecasting using time-series modeling
+- 🧠 Automated insights and business recommendations
 
 ## ⚙️ How to Run
 
