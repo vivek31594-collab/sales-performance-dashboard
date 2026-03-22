@@ -16,7 +16,8 @@ def load_data():
     df["Order.Date"] = pd.to_datetime(df["Order.Date"])
     return df
 
-df = load_data()
+with st.spinner("Loading data..."):
+    df = load_data()
 
 # ---------------- HEADER ----------------
 st.markdown("""
@@ -26,16 +27,30 @@ st.markdown("""
 
 st.markdown("---")
 
+# ---------------- EXECUTIVE SUMMARY ----------------
+st.markdown("## 📊 Executive Summary")
+
+st.success("📍 Central region contributes ~19.61% of total revenue")
+st.info("📅 March is the peak sales month indicating seasonal demand")
+st.warning("⚠️ Office Supplies has high sales but low profit margin")
+
+st.markdown("---")
+
 # ---------------- SIDEBAR ----------------
-st.sidebar.header("🔎 Filters")
+st.sidebar.markdown("## 📊 Dashboard Filters")
 
 min_date = df["Order.Date"].min()
 max_date = df["Order.Date"].max()
 
 date_range = st.sidebar.date_input("Date Range", [min_date, max_date])
 
-region_list = st.sidebar.multiselect("Region", df["Region"].unique(), default=df["Region"].unique())
-category_list = st.sidebar.multiselect("Category", df["Category"].unique(), default=df["Category"].unique())
+region_list = st.sidebar.multiselect(
+    "Region", df["Region"].unique(), default=df["Region"].unique()
+)
+
+category_list = st.sidebar.multiselect(
+    "Category", df["Category"].unique(), default=df["Category"].unique()
+)
 
 top_n = st.sidebar.slider("Top Products", 5, 20, 10)
 
@@ -48,7 +63,7 @@ df_selection = df[
 ].copy()
 
 if df_selection.empty:
-    st.warning("No data available")
+    st.error("No data available for selected filters")
     st.stop()
 
 # ---------------- KPI ----------------
@@ -65,32 +80,38 @@ yoy = sales_by_year.pct_change().iloc[-1] if len(sales_by_year) > 1 else 0
 st.markdown("## 📌 Key Metrics")
 c1, c2, c3, c4, c5, c6 = st.columns(6)
 
-c1.metric("💰 Sales", f"${total_sales:,.0f}")
-c2.metric("📈 Profit", f"${total_profit:,.0f}")
+c1.metric("💰 Sales", f"₹{total_sales:,.0f}")
+c2.metric("📈 Profit", f"₹{total_profit:,.0f}")
 c3.metric("🛒 Orders", orders)
-c4.metric("💳 AOV", f"${aov:,.2f}")
+c4.metric("💳 AOV", f"₹{aov:,.2f}")
 c5.metric("📊 Margin", f"{margin:.2f}%")
-c6.metric("📈 YoY", f"{yoy:.2%}")
+c6.metric("📈 YoY Growth", f"{yoy:.2%}", delta=f"{yoy:.2%}")
 
 st.markdown("---")
 
 # ---------------- SMART INSIGHTS ----------------
 st.markdown("## 🧠 Smart Insights")
 
-top_region = df_selection.groupby("Region")["Sales"].sum().idxmax()
+region_sales = df_selection.groupby("Region")["Sales"].sum()
+region_percent = (region_sales / region_sales.sum()) * 100
+
+top_region = region_sales.idxmax()
+top_region_pct = region_percent.max()
+
 top_category = df_selection.groupby("Category")["Sales"].sum().idxmax()
 worst_category = df_selection.groupby("Category")["Profit"].sum().idxmin()
 
 col1, col2, col3 = st.columns(3)
-col1.success(f"🏆 Top Region: {top_region}")
-col2.success(f"📦 Best Category: {top_category}")
-col3.error(f"⚠️ Lowest Profit Category: {worst_category}")
+
+col1.success(f"🏆 {top_region} contributes {top_region_pct:.2f}% of revenue")
+col2.success(f"📦 {top_category} is the best performing category")
+col3.error(f"⚠️ {worst_category} has lowest profitability")
 
 # ---------------- BUSINESS RECOMMENDATIONS ----------------
 st.markdown("## 📌 Business Recommendations")
 
 if margin < 10:
-    st.error("Profit margin is low — reduce discounts or optimize costs")
+    st.error("Profit margin is low — optimize pricing or reduce costs")
 
 if yoy < 0:
     st.warning("Negative growth detected — investigate declining segments")
@@ -108,7 +129,9 @@ st.dataframe(low_profit_subcat)
 
 if not low_profit_subcat.empty:
     worst_sub = low_profit_subcat.iloc[0]["Sub.Category"]
-    st.error(f"Major profit leakage is coming from '{worst_sub}' sub-category")
+    st.error(f"Major profit leakage is from '{worst_sub}' sub-category")
+
+st.info("These sub-categories require pricing or cost optimization.")
 
 # ---------------- PROFIT VS SALES ----------------
 st.markdown("## 📊 Profit vs Sales Analysis")
@@ -122,11 +145,11 @@ fig_scatter = px.scatter(
 )
 
 st.plotly_chart(fig_scatter, use_container_width=True)
-st.info("High sales but low profit products indicate pricing or cost issues.")
+st.caption("📌 High sales but low profit indicates pricing or cost issues")
 
 # ---------------- TABS ----------------
 tab1, tab2, tab3, tab4, tab5 = st.tabs(
-    ["📈 Sales", "🌍 Region", "📦 Products", "👥 Segment", "🔮 Forecast"]
+    ["📈 Sales", "🌍 Region", "📦 Products", "🌐 Market", "🔮 Forecast"]
 )
 
 # ---------------- SALES ----------------
@@ -154,22 +177,23 @@ with tab3:
         .sum().sort_values(ascending=False).head(top_n).reset_index()
     )
 
-    fig = px.bar(top_products, x="Sales", y="Product.Name", orientation="h", color="Sales")
+    fig = px.bar(top_products, x="Sales", y="Product.Name",
+                 orientation="h", color="Sales")
     st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("### ❌ Loss Making Products")
     loss = df_selection[df_selection["Profit"] < 0]
     st.dataframe(loss[["Product.Name", "Sales", "Profit"]].head(10))
 
-# ---------------- SEGMENT ----------------
+# ---------------- MARKET ----------------
 with tab4:
-    seg = df_selection.groupby("Market")["Sales"].sum().reset_index()
-    fig = px.bar(seg, x="Market", y="Sales", color="Market")
+    market = df_selection.groupby("Market")["Sales"].sum().reset_index()
+    fig = px.bar(market, x="Market", y="Sales", color="Market")
     st.plotly_chart(fig, use_container_width=True)
 
 # ---------------- FORECAST ----------------
 with tab5:
-    st.info("Forecast based on historical trends for business planning")
+    st.markdown("### 🔮 Sales Forecast (Next 6 Months)")
 
     forecast_df = df_selection.groupby(
         pd.Grouper(key='Order.Date', freq='M')
@@ -191,15 +215,18 @@ with tab5:
         fig = px.line(forecast, x="ds", y="yhat")
         st.plotly_chart(fig, use_container_width=True)
 
-        st.success("Use forecast for demand planning and inventory optimization.")
+        st.success("Use forecast for inventory and demand planning")
 
 # ---------------- DOWNLOAD ----------------
 st.download_button(
-    "📥 Download Data",
+    "📥 Download Filtered Data",
     df_selection.to_csv(index=False),
     "filtered_data.csv"
 )
 
 # ---------------- FOOTER ----------------
-st.markdown("---")
-st.markdown("🚀 Built by Vivek Saha | Data Analyst Portfolio")
+st.markdown("""
+---
+🚀 Built by **Vivek Saha**  
+📊 Aspiring Data Analyst | Transforming Data into Insights
+""")
