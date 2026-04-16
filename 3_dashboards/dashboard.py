@@ -4,7 +4,7 @@ import plotly.express as px
 
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(
-    page_title="Sales Intelligence Dashboard",
+    page_title="Sales Intelligence & Decision Support System",
     page_icon="📊",
     layout="wide"
 )
