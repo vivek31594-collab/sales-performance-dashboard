@@ -14,10 +14,7 @@ st.set_page_config(
 def load_data():
     df = pd.read_csv("1_data/processed/cleaned_sales.csv")
     df["Order.Date"] = pd.to_datetime(df["Order.Date"])
-
-    # NEW: Profit Margin
     df["Profit_Margin"] = (df["Profit"] / df["Sales"]) * 100
-
     return df
 
 df = load_data()
@@ -65,7 +62,6 @@ orders = df["Order.ID"].nunique()
 aov = total_sales / orders
 margin = (total_profit / total_sales) * 100
 
-# NEW: Monthly Growth
 monthly = df.groupby(df["Order.Date"].dt.to_period("M"))["Sales"].sum()
 
 if len(monthly) > 1:
@@ -80,6 +76,18 @@ c2.metric("📈 Profit", f"₹{total_profit:,.0f}")
 c3.metric("🛒 Orders", orders)
 c4.metric("💳 AOV", f"₹{aov:,.2f}")
 c5.metric("📊 Margin", f"{margin:.2f}%")
+
+st.markdown("---")
+
+# ---------------- BUSINESS QUESTIONS ----------------
+st.subheader("❓ Key Business Questions Answered")
+
+st.markdown("""
+- Which region drives the most revenue? → **Central Region**
+- Which category is hurting profitability? → **Office Supplies**
+- Are discounts impacting profit? → **Yes, negatively**
+- Where should the business focus? → **High-performing regions & products**
+""")
 
 st.markdown("---")
 
@@ -98,13 +106,21 @@ col1.success(f"🏆 {top_region} is driving maximum revenue")
 col2.warning(f"⚠️ {worst_category} has lowest profitability")
 col3.info("📉 High discounts are reducing profit margins")
 
+# ---------------- TOP VS BOTTOM ----------------
+st.subheader("⚖️ Top vs Bottom Performance")
+
+top_cat = category_profit.idxmax()
+bottom_cat = category_profit.idxmin()
+
+st.success(f"🏆 Best Category: {top_cat}")
+st.error(f"⚠️ Worst Category: {bottom_cat}")
+
 st.markdown("---")
 
 # ---------------- SALES TREND ----------------
 st.subheader("📈 Sales Trend")
 
 trend = df.resample("M", on="Order.Date")["Sales"].sum().reset_index()
-
 fig = px.line(trend, x="Order.Date", y="Sales", markers=True)
 st.plotly_chart(fig, use_container_width=True)
 
@@ -135,7 +151,6 @@ fig = px.scatter(
 )
 
 st.plotly_chart(fig, use_container_width=True)
-
 st.caption("📌 High sales but low profit indicates pricing issues")
 
 # ---------------- LOSS-MAKING PRODUCTS ----------------
@@ -144,7 +159,6 @@ st.subheader("🚨 Loss-Making Products")
 loss = df[df["Profit"] < 0]
 
 st.dataframe(loss[["Product.Name", "Sales", "Profit"]].head(10))
-
 st.warning("These products are causing profit leakage")
 
 # ---------------- DISCOUNT IMPACT ----------------
@@ -154,6 +168,20 @@ fig = px.scatter(df, x="Discount", y="Profit", color="Category")
 st.plotly_chart(fig, use_container_width=True)
 
 st.info("Higher discounts negatively impact profitability")
+
+# ---------------- RISK INDICATORS ----------------
+st.subheader("🚨 Risk Indicators")
+
+if margin < 15:
+    st.error("Low profit margin → Immediate action required")
+
+if growth < 0:
+    st.error("Negative growth → Business decline risk")
+
+if len(loss) > 0:
+    st.warning("Loss-making products detected")
+
+st.markdown("---")
 
 # ---------------- FORECAST ----------------
 st.subheader("🔮 Sales Forecast")
@@ -172,6 +200,8 @@ if len(forecast_df) > 2:
 
     fig = px.line(forecast, x="ds", y="yhat")
     st.plotly_chart(fig, use_container_width=True)
+
+    st.info("Forecast generated using Prophet time-series model")
 
 # ---------------- DECISION SECTION ----------------
 st.subheader("🧠 Recommended Actions")
