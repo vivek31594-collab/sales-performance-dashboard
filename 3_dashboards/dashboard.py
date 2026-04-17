@@ -12,9 +12,17 @@ st.set_page_config(
 # ---------------- LOAD DATA ----------------
 @st.cache_data
 def load_data():
-    df = pd.read_csv("1_data/processed/cleaned_sales.csv")
-    df["Order.Date"] = pd.to_datetime(df["Order.Date"])
-    df["Profit_Margin"] = (df["Profit"] / df["Sales"]) * 100
+    df = pd.read_csv("1_data/processed/cleanedsales.csv")
+
+    # 🔥 CLEAN COLUMN NAMES (CRITICAL FIX)
+    df.columns = df.columns.str.strip().str.replace(".", "_", regex=False)
+
+    # 🔥 SAFE DATE CONVERSION
+    df["Order_Date"] = pd.to_datetime(df["Order_Date"], errors="coerce")
+
+    # 🔥 SAFE PROFIT MARGIN CALC
+    df["Profit_Margin"] = (df["Profit"] / df["Sales"].replace(0, pd.NA)) * 100
+
     return df
 
 df = load_data()
@@ -25,32 +33,39 @@ st.caption("Business Insights • Profit Optimization • Forecasting")
 
 st.markdown("---")
 
-# ---------------- SIDEBAR ----------------
+# ---------------- SIDEBAR FILTERS ----------------
 st.sidebar.header("🔍 Filters")
+
+min_date = df["Order_Date"].min()
+max_date = df["Order_Date"].max()
 
 date_range = st.sidebar.date_input(
     "Date Range",
-    [df["Order.Date"].min(), df["Order.Date"].max()]
+    [min_date, max_date]
 )
 
 region = st.sidebar.multiselect(
-    "Region", df["Region"].unique(), default=df["Region"].unique()
+    "Region",
+    df["Region"].dropna().unique(),
+    default=df["Region"].dropna().unique()
 )
 
 category = st.sidebar.multiselect(
-    "Category", df["Category"].unique(), default=df["Category"].unique()
+    "Category",
+    df["Category"].dropna().unique(),
+    default=df["Category"].dropna().unique()
 )
 
 # ---------------- FILTER DATA ----------------
 df = df[
     (df["Region"].isin(region)) &
     (df["Category"].isin(category)) &
-    (df["Order.Date"] >= pd.to_datetime(date_range[0])) &
-    (df["Order.Date"] <= pd.to_datetime(date_range[1]))
+    (df["Order_Date"] >= pd.to_datetime(date_range[0])) &
+    (df["Order_Date"] <= pd.to_datetime(date_range[1]))
 ]
 
 if df.empty:
-    st.error("No data available")
+    st.error("No data available for selected filters")
     st.stop()
 
 # ---------------- KPI SECTION ----------------
@@ -58,11 +73,12 @@ st.subheader("📌 Key Metrics")
 
 total_sales = df["Sales"].sum()
 total_profit = df["Profit"].sum()
-orders = df["Order.ID"].nunique()
-aov = total_sales / orders
-margin = (total_profit / total_sales) * 100
+orders = df["Order_ID"].nunique()
 
-monthly = df.groupby(df["Order.Date"].dt.to_period("M"))["Sales"].sum()
+aov = total_sales / orders if orders else 0
+margin = (total_profit / total_sales) * 100 if total_sales else 0
+
+monthly = df.groupby(df["Order_Date"].dt.to_period("M"))["Sales"].sum()
 
 if len(monthly) > 1:
     growth = ((monthly.iloc[-1] - monthly.iloc[-2]) / monthly.iloc[-2]) * 100
@@ -79,18 +95,6 @@ c5.metric("📊 Margin", f"{margin:.2f}%")
 
 st.markdown("---")
 
-# ---------------- BUSINESS QUESTIONS ----------------
-st.subheader("❓ Key Business Questions Answered")
-
-st.markdown("""
-- Which region drives the most revenue? → **Central Region**
-- Which category is hurting profitability? → **Office Supplies**
-- Are discounts impacting profit? → **Yes, negatively**
-- Where should the business focus? → **High-performing regions & products**
-""")
-
-st.markdown("---")
-
 # ---------------- SMART INSIGHTS ----------------
 st.subheader("🧠 Key Insights")
 
@@ -99,29 +103,22 @@ top_region = region_sales.idxmax()
 
 category_profit = df.groupby("Category")["Profit"].sum()
 worst_category = category_profit.idxmin()
+best_category = category_profit.idxmax()
 
 col1, col2, col3 = st.columns(3)
 
 col1.success(f"🏆 {top_region} is driving maximum revenue")
 col2.warning(f"⚠️ {worst_category} has lowest profitability")
-col3.info("📉 High discounts are reducing profit margins")
-
-# ---------------- TOP VS BOTTOM ----------------
-st.subheader("⚖️ Top vs Bottom Performance")
-
-top_cat = category_profit.idxmax()
-bottom_cat = category_profit.idxmin()
-
-st.success(f"🏆 Best Category: {top_cat}")
-st.error(f"⚠️ Worst Category: {bottom_cat}")
+col3.info("📉 Discounts may be impacting profit margins")
 
 st.markdown("---")
 
 # ---------------- SALES TREND ----------------
 st.subheader("📈 Sales Trend")
 
-trend = df.resample("M", on="Order.Date")["Sales"].sum().reset_index()
-fig = px.line(trend, x="Order.Date", y="Sales", markers=True)
+trend = df.resample("M", on="Order_Date")["Sales"].sum().reset_index()
+
+fig = px.line(trend, x="Order_Date", y="Sales", markers=True)
 st.plotly_chart(fig, use_container_width=True)
 
 # ---------------- CATEGORY PERFORMANCE ----------------
@@ -133,8 +130,7 @@ fig = px.bar(
     cat,
     x="Category",
     y="Profit",
-    color="Profit",
-    color_continuous_scale="RdYlGn"
+    color="Profit"
 )
 
 st.plotly_chart(fig, use_container_width=True)
@@ -147,18 +143,20 @@ fig = px.scatter(
     x="Sales",
     y="Profit",
     color="Category",
-    hover_data=["Product.Name"]
+    hover_data=["Product_Name"]
 )
 
 st.plotly_chart(fig, use_container_width=True)
-st.caption("📌 High sales but low profit indicates pricing issues")
 
-# ---------------- LOSS-MAKING PRODUCTS ----------------
+# ---------------- LOSS MAKING PRODUCTS ----------------
 st.subheader("🚨 Loss-Making Products")
 
 loss = df[df["Profit"] < 0]
 
-st.dataframe(loss[["Product.Name", "Sales", "Profit"]].head(10))
+st.dataframe(
+    loss[["Product_Name", "Sales", "Profit"]].head(10)
+)
+
 st.warning("These products are causing profit leakage")
 
 # ---------------- DISCOUNT IMPACT ----------------
@@ -166,8 +164,6 @@ st.subheader("📉 Discount vs Profit")
 
 fig = px.scatter(df, x="Discount", y="Profit", color="Category")
 st.plotly_chart(fig, use_container_width=True)
-
-st.info("Higher discounts negatively impact profitability")
 
 # ---------------- RISK INDICATORS ----------------
 st.subheader("🚨 Risk Indicators")
@@ -183,35 +179,29 @@ if len(loss) > 0:
 
 st.markdown("---")
 
-# ---------------- FORECAST ----------------
+# ---------------- FORECAST (SAFE IMPORT) ----------------
 st.subheader("🔮 Sales Forecast")
 
-forecast_df = df.groupby(pd.Grouper(key='Order.Date', freq='M'))['Sales'].sum().reset_index()
-forecast_df.rename(columns={"Order.Date": "ds", "Sales": "y"}, inplace=True)
-
-if len(forecast_df) > 2:
+try:
     from prophet import Prophet
 
-    model = Prophet()
-    model.fit(forecast_df)
+    forecast_df = df.groupby(pd.Grouper(key="Order_Date", freq="M"))["Sales"].sum().reset_index()
+    forecast_df.columns = ["ds", "y"]
 
-    future = model.make_future_dataframe(periods=6, freq='M')
-    forecast = model.predict(future)
+    if len(forecast_df) > 2:
+        model = Prophet()
+        model.fit(forecast_df)
 
-    fig = px.line(forecast, x="ds", y="yhat")
-    st.plotly_chart(fig, use_container_width=True)
+        future = model.make_future_dataframe(periods=6, freq="M")
+        forecast = model.predict(future)
 
-    st.info("Forecast generated using Prophet time-series model")
+        fig = px.line(forecast, x="ds", y="yhat")
+        st.plotly_chart(fig, use_container_width=True)
 
-# ---------------- DECISION SECTION ----------------
-st.subheader("🧠 Recommended Actions")
+        st.info("Forecast generated using Prophet model")
 
-st.markdown("""
-- Increase inventory in high-performing regions  
-- Reduce discounting in low-margin categories  
-- Focus marketing on top-selling products  
-- Investigate loss-making sub-categories  
-""")
+except Exception as e:
+    st.warning("Forecasting module skipped (Prophet not available or data insufficient)")
 
 # ---------------- DOWNLOAD ----------------
 st.download_button(
