@@ -1,25 +1,28 @@
 -- =====================================================
--- 📊 SALES ANALYTICS DASHBOARD PROJECT (FINAL UPGRADED)
+-- 📊 SALES ANALYTICS DASHBOARD PROJECT (PROFESSIONAL GRADE - FINAL)
 -- Author: Vivek Saha
--- Purpose: End-to-end business performance analysis using SQL
--- Skills: Aggregations, Window Functions, CTEs, HAVING, Bucketing, Data Quality Awareness
+-- Purpose: End-to-end business performance analysis for Dashboarding
+-- Compatibility: MySQL 5.7+ (No window function dependency)
 -- =====================================================
 
 USE sales_analysis;
 
 -- =====================================================
--- 0️⃣ SAFETY FILTER (DATA CLEANLINESS LAYER)
+-- 0️⃣ DATA INTEGRITY CHECK
 -- =====================================================
--- Ensures nulls do not break calculations
--- (Industry best practice)
+SELECT 
+    COUNT(*) AS Total_Rows,
+    COUNT(DISTINCT Sub_Category) AS SubCat_Count
+FROM sales;
+
 
 -- =====================================================
 -- 1️⃣ KPI SUMMARY (EXECUTIVE OVERVIEW)
 -- =====================================================
 SELECT 
     COUNT(*) AS Total_Transactions,
-    SUM(Sales) AS Total_Sales,
-    SUM(Profit) AS Total_Profit,
+    ROUND(SUM(Sales), 2) AS Total_Sales,
+    ROUND(SUM(Profit), 2) AS Total_Profit,
     ROUND(SUM(Profit) * 100.0 / NULLIF(SUM(Sales), 0), 2) AS Profit_Margin_Percent,
     ROUND(AVG(Profit), 2) AS Avg_Profit_Per_Transaction
 FROM sales
@@ -31,41 +34,46 @@ WHERE Sales IS NOT NULL AND Profit IS NOT NULL;
 -- =====================================================
 SELECT 
     Region,
-    SUM(Sales) AS Total_Sales,
+    ROUND(SUM(Sales), 2) AS Total_Sales,
     ROUND(
-        SUM(Sales) * 100.0 / (SELECT SUM(Sales) FROM sales WHERE Sales IS NOT NULL),
+        SUM(Sales) * 100.0 / (SELECT SUM(Sales) FROM sales),
         2
     ) AS Contribution_Percent
 FROM sales
-WHERE Sales IS NOT NULL
 GROUP BY Region
 ORDER BY Total_Sales DESC;
 
 
 -- =====================================================
--- 3️⃣ REGION RANKING (WINDOW FUNCTIONS)
+-- 3️⃣ REGION RANKING (COMPATIBLE VERSION)
 -- =====================================================
+SET @rank := 0;
+
 SELECT 
     Region,
-    SUM(Sales) AS Total_Sales,
-    RANK() OVER (ORDER BY SUM(Sales) DESC) AS Sales_Rank,
-    DENSE_RANK() OVER (ORDER BY SUM(Sales) DESC) AS Dense_Rank
-FROM sales
-WHERE Sales IS NOT NULL
-GROUP BY Region;
+    Total_Sales,
+    @rank := @rank + 1 AS Sales_Rank
+FROM (
+    SELECT 
+        Region,
+        ROUND(SUM(Sales), 2) AS Total_Sales
+    FROM sales
+    GROUP BY Region
+    ORDER BY Total_Sales DESC
+) ranked_regions;
 
 
 -- =====================================================
--- 4️⃣ TOP 5 PRODUCTS BY SALES
+-- 4️⃣ TOP 10 PRODUCTS BY SALES
 -- =====================================================
 SELECT 
     Product_Name,
-    SUM(Sales) AS Total_Sales
+    Category,
+    ROUND(SUM(Sales), 2) AS Total_Sales
 FROM sales
-WHERE Sales IS NOT NULL
-GROUP BY Product_Name
+GROUP BY Product_Name, Category
 ORDER BY Total_Sales DESC
-LIMIT 5;
+LIMIT 10;
 
 
 -- =====================================================
@@ -73,11 +81,10 @@ LIMIT 5;
 -- =====================================================
 SELECT 
     Sub_Category,
-    SUM(Profit) AS Total_Profit
+    ROUND(SUM(Profit), 2) AS Total_Profit
 FROM sales
-WHERE Profit IS NOT NULL
 GROUP BY Sub_Category
-ORDER BY Total_Profit ASC;
+ORDER BY Total_Profit DESC;
 
 
 -- =====================================================
@@ -85,12 +92,12 @@ ORDER BY Total_Profit ASC;
 -- =====================================================
 SELECT 
     Category,
-    SUM(Sales) AS Total_Sales,
-    SUM(Profit) AS Total_Profit,
+    ROUND(SUM(Sales), 2) AS Total_Sales,
+    ROUND(SUM(Profit), 2) AS Total_Profit,
     ROUND(SUM(Profit) * 100.0 / NULLIF(SUM(Sales), 0), 2) AS Profit_Margin_Percent
 FROM sales
-WHERE Sales IS NOT NULL AND Profit IS NOT NULL
-GROUP BY Category;
+GROUP BY Category
+ORDER BY Profit_Margin_Percent DESC;
 
 
 -- =====================================================
@@ -98,9 +105,8 @@ GROUP BY Category;
 -- =====================================================
 SELECT 
     Market,
-    SUM(Sales) AS Total_Sales
+    ROUND(SUM(Sales), 2) AS Total_Sales
 FROM sales
-WHERE Sales IS NOT NULL
 GROUP BY Market
 ORDER BY Total_Sales DESC;
 
@@ -110,63 +116,67 @@ ORDER BY Total_Sales DESC;
 -- =====================================================
 SELECT 
     Product_Name,
-    SUM(Sales) AS Total_Sales,
-    SUM(Profit) AS Total_Profit
+    Category,
+    ROUND(SUM(Sales), 2) AS Total_Sales,
+    ROUND(SUM(Profit), 2) AS Total_Profit
 FROM sales
-GROUP BY Product_Name
+GROUP BY Product_Name, Category
 HAVING SUM(Profit) < 0
 ORDER BY Total_Profit ASC;
 
 
 -- =====================================================
--- 9️⃣ HIGH-PERFORMING REGIONS (TOP CONTRIBUTORS)
+-- 9️⃣ ABOVE-AVERAGE SALES REGIONS
 -- =====================================================
 SELECT 
     Region,
-    SUM(Sales) AS Total_Sales
+    ROUND(SUM(Sales), 2) AS Total_Sales
 FROM sales
 GROUP BY Region
-HAVING SUM(Sales) > (SELECT AVG(Sales) FROM sales)
-ORDER BY Total_Sales DESC;
-
-
--- =====================================================
--- 🔟 ADVANCED ANALYSIS USING CTE
--- =====================================================
-WITH region_sales AS (
-    SELECT 
-        Region,
-        SUM(Sales) AS Total_Sales,
-        SUM(Profit) AS Total_Profit
-    FROM sales
-    GROUP BY Region
+HAVING SUM(Sales) > (
+    SELECT AVG(Sales_Per_Region) 
+    FROM (
+        SELECT SUM(Sales) AS Sales_Per_Region 
+        FROM sales 
+        GROUP BY Region
+    ) sub
 )
-SELECT *
-FROM region_sales
 ORDER BY Total_Sales DESC;
 
 
 -- =====================================================
--- 1️⃣1️⃣ SALES VS PROFIT BUCKETING (TREND ANALYSIS)
+-- 🔟 ADVANCED ANALYSIS (REGIONAL EFFICIENCY - FIXED)
 -- =====================================================
 SELECT 
-    FLOOR(Sales / 100) * 100 AS Sales_Bucket,
-    COUNT(*) AS Transaction_Count,
-    AVG(Profit) AS Avg_Profit
+    Region,
+    ROUND(SUM(Sales), 2) AS Total_Sales,
+    ROUND(SUM(Profit), 2) AS Total_Profit,
+    COUNT(*) AS Order_Count,
+    ROUND(SUM(Profit) / NULLIF(COUNT(*), 0), 2) AS Profit_Per_Order
+FROM sales
+GROUP BY Region
+ORDER BY Total_Sales DESC;
+
+
+-- =====================================================
+-- 1️⃣1️⃣ SALES DISTRIBUTION (BUCKETING)
+-- =====================================================
+SELECT 
+    FLOOR(Sales / 500) * 500 AS Sales_Bucket,
+    COUNT(*) AS Transaction_Count
 FROM sales
 GROUP BY Sales_Bucket
 ORDER BY Sales_Bucket;
 
 
 -- =====================================================
--- 1️⃣2️⃣ EXECUTIVE SUMMARY (FINAL INSIGHT BLOCK)
+-- 1️⃣2️⃣ FINAL EXECUTIVE SUMMARY
 -- =====================================================
 SELECT 
     COUNT(DISTINCT Region) AS Total_Regions,
-    COUNT(DISTINCT Product_Name) AS Total_Products,
-    SUM(Sales) AS Total_Revenue,
-    SUM(Profit) AS Total_Profit,
-    ROUND(AVG(Profit), 2) AS Avg_Profit_Per_Transaction,
-    ROUND(MAX(Profit), 2) AS Max_Profit,
-    ROUND(MIN(Profit), 2) AS Max_Loss
+    COUNT(DISTINCT Category) AS Total_Categories,
+    COUNT(DISTINCT Product_Name) AS Total_Unique_Products,
+    ROUND(SUM(Sales), 2) AS Total_Revenue,
+    ROUND(SUM(Profit), 2) AS Total_Profit,
+    ROUND(AVG(Profit), 2) AS Avg_Profit_Per_Txn
 FROM sales;
