@@ -2,14 +2,18 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# ---------------- PAGE CONFIG ----------------
+# =====================================================
+# 📊 PAGE CONFIG
+# =====================================================
 st.set_page_config(
     page_title="Sales Intelligence Dashboard",
     page_icon="📊",
     layout="wide"
 )
 
-# ---------------- LOAD DATA ----------------
+# =====================================================
+# 📥 LOAD DATA
+# =====================================================
 @st.cache_data
 def load_data():
     df = pd.read_csv(
@@ -21,7 +25,7 @@ def load_data():
     # Clean column names
     df.columns = df.columns.str.strip().str.replace(".", "_", regex=False)
 
-    # Safe datetime conversion
+    # Date conversion
     df["Order_Date"] = pd.to_datetime(df["Order_Date"], errors="coerce")
     df = df.dropna(subset=["Order_Date"])
 
@@ -44,14 +48,23 @@ def load_data():
 
 df = load_data()
 
-# ---------------- HEADER ----------------
-st.title("📊 Sales Intelligence & Decision Support System")
-st.caption("Executive Analytics • Profitability Insights • Data Quality Driven Dashboard")
+# =====================================================
+# 🧭 BUSINESS STORY FLOW (NEW)
+# =====================================================
+st.subheader("🧭 Business Story Flow")
+
+st.info("""
+📥 Data Ingestion → Raw CSV Sales Dataset  
+🔧 Data Cleaning → Missing values, formatting, type correction  
+📊 Analytics Layer → KPIs, trends, category analysis  
+🧠 Insights Layer → Profitability, risk detection  
+📌 Decision Layer → Business recommendations for optimization
+""")
 
 st.markdown("---")
 
 # =====================================================
-# 📌 EXECUTIVE BUSINESS SUMMARY
+# 📌 EXECUTIVE SUMMARY
 # =====================================================
 st.subheader("📌 Executive Business Summary")
 
@@ -61,22 +74,23 @@ total_orders = df["Order_ID"].nunique()
 
 profit_margin = (total_profit / total_sales * 100) if total_sales else 0
 
-# ---------------- DATA QUALITY SCORE (NEW UPGRADE) ----------------
+# =====================================================
+# 🧪 DATA QUALITY SCORE
+# =====================================================
 total_rows = len(df)
-
 null_ratio = df.isnull().sum().sum() / (total_rows * len(df.columns)) * 100
 duplicate_ratio = df.duplicated().sum() / total_rows * 100
 
 quality_score = 100 - (null_ratio + duplicate_ratio)
 quality_score = max(0, min(100, quality_score))
 
-col1, col2, col3 = st.columns(3)
+c1, c2, c3 = st.columns(3)
 
-col1.metric("💰 Total Revenue", f"₹{total_sales:,.0f}")
-col2.metric("📈 Total Profit", f"₹{total_profit:,.0f}")
-col3.metric("🛒 Total Orders", f"{total_orders:,}")
+c1.metric("💰 Total Revenue", f"₹{total_sales:,.0f}")
+c2.metric("📈 Total Profit", f"₹{total_profit:,.0f}")
+c3.metric("🛒 Total Orders", f"{total_orders:,}")
 
-# Profit health
+# Profit Health
 if profit_margin >= 20:
     st.success(f"🟢 Strong Business Health | Margin: {profit_margin:.2f}%")
 elif profit_margin >= 10:
@@ -84,7 +98,7 @@ elif profit_margin >= 10:
 else:
     st.error(f"🔴 Profitability Risk | Margin: {profit_margin:.2f}%")
 
-# Data Quality Display
+# Data Quality
 st.subheader("🧪 Data Quality Score")
 
 if quality_score >= 85:
@@ -92,20 +106,19 @@ if quality_score >= 85:
 elif quality_score >= 70:
     st.warning(f"🟡 Moderate Quality Data: {quality_score:.2f}/100")
 else:
-    st.error(f"🔴 Poor Data Quality: {quality_score:.2f}/100")
+    st.error(f"🔴 Poor Quality Data: {quality_score:.2f}/100")
 
 st.markdown("---")
 
-# ---------------- SIDEBAR FILTERS ----------------
+# =====================================================
+# 🔍 FILTERS
+# =====================================================
 st.sidebar.header("🔍 Filters")
 
 min_date = df["Order_Date"].min()
 max_date = df["Order_Date"].max()
 
-date_range = st.sidebar.date_input(
-    "Select Date Range",
-    [min_date, max_date]
-)
+date_range = st.sidebar.date_input("Select Date Range", [min_date, max_date])
 
 region_list = df["Region"].dropna().unique().tolist()
 category_list = df["Category"].dropna().unique().tolist()
@@ -113,7 +126,9 @@ category_list = df["Category"].dropna().unique().tolist()
 region = st.sidebar.multiselect("Region", region_list, default=region_list)
 category = st.sidebar.multiselect("Category", category_list, default=category_list)
 
-# ---------------- FILTER DATA ----------------
+# =====================================================
+# FILTERED DATA
+# =====================================================
 filtered_df = df[
     (df["Region"].isin(region)) &
     (df["Category"].isin(category)) &
@@ -125,7 +140,9 @@ if filtered_df.empty:
     st.error("No data available for selected filters")
     st.stop()
 
-# ---------------- KPI CALCULATION ----------------
+# =====================================================
+# 📊 KPIs
+# =====================================================
 total_sales = filtered_df["Sales"].sum()
 total_profit = filtered_df["Profit"].sum()
 orders = filtered_df["Order_ID"].nunique()
@@ -147,7 +164,6 @@ if len(monthly_sales) > 1:
         / monthly_sales["Sales"].iloc[-2]
     ) * 100
 
-# ---------------- KPI DISPLAY ----------------
 st.subheader("📌 Key Metrics")
 
 c1, c2, c3, c4, c5 = st.columns(5)
@@ -160,7 +176,9 @@ c5.metric("📊 Margin", f"{margin:.2f}%")
 
 st.markdown("---")
 
-# ---------------- INSIGHTS ----------------
+# =====================================================
+# 🧠 INSIGHTS
+# =====================================================
 st.subheader("🧠 Business Insights")
 
 region_sales = filtered_df.groupby("Region")["Sales"].sum()
@@ -178,13 +196,14 @@ col3.info(f"💡 Best Category: {best_category}")
 
 st.markdown("---")
 
-# ---------------- SALES TREND ----------------
+# =====================================================
+# 📈 VISUALS
+# =====================================================
 st.subheader("📈 Sales Trend")
 
 fig = px.line(monthly_sales, x="YearMonth", y="Sales", markers=True)
 st.plotly_chart(fig, use_container_width=True)
 
-# ---------------- CATEGORY ANALYSIS ----------------
 st.subheader("📦 Category Performance")
 
 cat = filtered_df.groupby("Category")[["Sales", "Profit"]].sum().reset_index()
@@ -192,7 +211,6 @@ cat = filtered_df.groupby("Category")[["Sales", "Profit"]].sum().reset_index()
 fig = px.bar(cat, x="Category", y="Profit", color="Profit")
 st.plotly_chart(fig, use_container_width=True)
 
-# ---------------- PROFIT VS SALES ----------------
 st.subheader("📊 Profit vs Sales")
 
 fig = px.scatter(
@@ -205,24 +223,27 @@ fig = px.scatter(
 
 st.plotly_chart(fig, use_container_width=True)
 
-# ---------------- LOSS MAKING PRODUCTS ----------------
+# =====================================================
+# 🚨 LOSS ANALYSIS
+# =====================================================
 st.subheader("🚨 Loss-Making Products")
 
 loss_df = filtered_df[filtered_df["Profit"] < 0]
 
-st.dataframe(
-    loss_df[["Product_Name", "Sales", "Profit"]].head(10)
-)
-
+st.dataframe(loss_df[["Product_Name", "Sales", "Profit"]].head(10))
 st.warning(f"⚠️ {len(loss_df)} loss-making transactions detected")
 
-# ---------------- DISCOUNT IMPACT ----------------
+# =====================================================
+# 📉 DISCOUNT ANALYSIS
+# =====================================================
 st.subheader("📉 Discount Impact")
 
 fig = px.scatter(filtered_df, x="Discount", y="Profit", color="Category")
 st.plotly_chart(fig, use_container_width=True)
 
-# ---------------- RISK INDICATORS ----------------
+# =====================================================
+# 🚨 RISK INDICATORS
+# =====================================================
 st.subheader("🚨 Risk Indicators")
 
 if margin < 15:
@@ -236,7 +257,9 @@ if len(loss_df) > 0:
 
 st.markdown("---")
 
-# ---------------- DOWNLOAD ----------------
+# =====================================================
+# 📥 DOWNLOAD
+# =====================================================
 st.download_button(
     "📥 Download Filtered Data",
     filtered_df.to_csv(index=False),
@@ -244,6 +267,8 @@ st.download_button(
     mime="text/csv"
 )
 
-# ---------------- FOOTER ----------------
+# =====================================================
+# FOOTER
+# =====================================================
 st.markdown("---")
 st.caption("🚀 Built by Vivek Saha | Sales Analytics Dashboard")
