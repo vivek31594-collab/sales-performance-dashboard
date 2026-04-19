@@ -12,7 +12,7 @@ st.set_page_config(
 # ---------------- LOAD DATA ----------------
 @st.cache_data
 def load_data():
-    df = pd.read_csv("1_data/processed/cleanedsales.csv")
+    df = pd.read_csv("1_data/processed/cleanedsales.csv", encoding="cp1252")
 
     # 🔥 CLEAN COLUMN NAMES (CRITICAL FIX)
     df.columns = df.columns.str.strip().str.replace(".", "_", regex=False)
