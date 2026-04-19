@@ -36,7 +36,7 @@ def load_data():
     # Profit Margin
     df["Profit_Margin"] = df["Profit"] / df["Sales"].replace(0, pd.NA) * 100
 
-    # Time feature (safe for grouping)
+    # Time feature
     df["YearMonth"] = df["Order_Date"].dt.to_period("M").astype(str)
 
     return df
@@ -50,7 +50,9 @@ st.caption("Executive Analytics • Profitability Insights • Data Quality Driv
 
 st.markdown("---")
 
-# ---------------- EXECUTIVE SUMMARY (UPGRADED) ----------------
+# =====================================================
+# 📌 EXECUTIVE BUSINESS SUMMARY
+# =====================================================
 st.subheader("📌 Executive Business Summary")
 
 total_sales = df["Sales"].sum()
@@ -59,18 +61,38 @@ total_orders = df["Order_ID"].nunique()
 
 profit_margin = (total_profit / total_sales * 100) if total_sales else 0
 
+# ---------------- DATA QUALITY SCORE (NEW UPGRADE) ----------------
+total_rows = len(df)
+
+null_ratio = df.isnull().sum().sum() / (total_rows * len(df.columns)) * 100
+duplicate_ratio = df.duplicated().sum() / total_rows * 100
+
+quality_score = 100 - (null_ratio + duplicate_ratio)
+quality_score = max(0, min(100, quality_score))
+
 col1, col2, col3 = st.columns(3)
 
 col1.metric("💰 Total Revenue", f"₹{total_sales:,.0f}")
 col2.metric("📈 Total Profit", f"₹{total_profit:,.0f}")
 col3.metric("🛒 Total Orders", f"{total_orders:,}")
 
+# Profit health
 if profit_margin >= 20:
     st.success(f"🟢 Strong Business Health | Margin: {profit_margin:.2f}%")
 elif profit_margin >= 10:
     st.warning(f"🟡 Moderate Performance | Margin: {profit_margin:.2f}%")
 else:
     st.error(f"🔴 Profitability Risk | Margin: {profit_margin:.2f}%")
+
+# Data Quality Display
+st.subheader("🧪 Data Quality Score")
+
+if quality_score >= 85:
+    st.success(f"🟢 High Quality Data: {quality_score:.2f}/100")
+elif quality_score >= 70:
+    st.warning(f"🟡 Moderate Quality Data: {quality_score:.2f}/100")
+else:
+    st.error(f"🔴 Poor Data Quality: {quality_score:.2f}/100")
 
 st.markdown("---")
 
