@@ -24,28 +24,31 @@ def load_data():
     # Safe datetime conversion
     df["Order_Date"] = pd.to_datetime(df["Order_Date"], errors="coerce")
 
-    # Drop invalid dates (IMPORTANT FIX)
+    # Remove invalid rows
     df = df.dropna(subset=["Order_Date"])
 
-    # Safe numeric conversion
+    # Convert numeric safely
     for col in ["Sales", "Profit", "Discount"]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
-    # Fill remaining NaNs
     df["Sales"] = df["Sales"].fillna(0)
     df["Profit"] = df["Profit"].fillna(0)
 
-    # Profit margin (safe)
+    # Profit Margin
     df["Profit_Margin"] = df["Profit"] / df["Sales"].replace(0, pd.NA) * 100
 
+    # SAFE TIME FEATURE (IMPORTANT FIX)
+    df["YearMonth"] = df["Order_Date"].dt.to_period("M").astype(str)
+
     return df
+
 
 df = load_data()
 
 # ---------------- HEADER ----------------
 st.title("📊 Sales Intelligence & Decision Support System")
-st.caption("End-to-End Analytics • Profitability • Data Quality Driven Insights")
+st.caption("Business Insights • Profitability • Data Quality Analytics")
 
 st.markdown("---")
 
@@ -78,22 +81,6 @@ if filtered_df.empty:
     st.error("No data available for selected filters")
     st.stop()
 
-# ---------------- TIME SERIES FIX (IMPORTANT) ----------------
-filtered_df = filtered_df.sort_values("Order_Date")
-
-monthly_sales = (
-    filtered_df
-    .set_index("Order_Date")
-    .resample("M")["Sales"]
-    .sum()
-)
-
-# Growth calculation
-growth = 0
-if len(monthly_sales) > 1:
-    growth = ((monthly_sales.iloc[-1] - monthly_sales.iloc[-2]) /
-              monthly_sales.iloc[-2]) * 100
-
 # ---------------- KPI CALCULATION ----------------
 total_sales = filtered_df["Sales"].sum()
 total_profit = filtered_df["Profit"].sum()
@@ -101,6 +88,21 @@ orders = filtered_df["Order_ID"].nunique()
 
 aov = total_sales / orders if orders else 0
 margin = (total_profit / total_sales * 100) if total_sales else 0
+
+# Monthly trend (CLOUD SAFE FIX - NO resample)
+monthly_sales = (
+    filtered_df.groupby("YearMonth")["Sales"]
+    .sum()
+    .reset_index()
+    .sort_values("YearMonth")
+)
+
+growth = 0
+if len(monthly_sales) > 1:
+    growth = (
+        (monthly_sales["Sales"].iloc[-1] - monthly_sales["Sales"].iloc[-2])
+        / monthly_sales["Sales"].iloc[-2]
+    ) * 100
 
 # ---------------- KPI DISPLAY ----------------
 st.subheader("📌 Key Metrics")
@@ -136,9 +138,7 @@ st.markdown("---")
 # ---------------- SALES TREND ----------------
 st.subheader("📈 Sales Trend")
 
-trend = monthly_sales.reset_index()
-
-fig = px.line(trend, x="Order_Date", y="Sales", markers=True)
+fig = px.line(monthly_sales, x="YearMonth", y="Sales", markers=True)
 st.plotly_chart(fig, use_container_width=True)
 
 # ---------------- CATEGORY ANALYSIS ----------------
@@ -186,7 +186,7 @@ if margin < 15:
     st.error("Low profit margin detected")
 
 if growth < 0:
-    st.error("Negative growth trend")
+    st.error("Negative growth trend detected")
 
 if len(loss_df) > 0:
     st.warning("Loss-making products exist")
@@ -203,4 +203,4 @@ st.download_button(
 
 # ---------------- FOOTER ----------------
 st.markdown("---")
-st.caption("🚀 Built by Vivek Saha | Sales Analytics Project")
+st.caption("🚀 Built by Vivek Saha | Sales Analytics Dashboard")
