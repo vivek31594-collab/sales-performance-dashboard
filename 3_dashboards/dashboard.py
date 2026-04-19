@@ -12,16 +12,28 @@ st.set_page_config(
 # ---------------- LOAD DATA ----------------
 @st.cache_data
 def load_data():
-    df = pd.read_csv("1_data/processed/cleanedsales.csv", encoding="cp1252")
+    df = pd.read_csv(
+        "1_data/processed/cleanedsales.csv",
+        encoding="cp1252",
+        low_memory=False
+    )
 
-    # 🔥 CLEAN COLUMN NAMES (CRITICAL FIX)
+    # Clean column names
     df.columns = df.columns.str.strip().str.replace(".", "_", regex=False)
 
-    # 🔥 SAFE DATE CONVERSION
+    # Safe date conversion
     df["Order_Date"] = pd.to_datetime(df["Order_Date"], errors="coerce")
 
-    # 🔥 SAFE PROFIT MARGIN CALC
-    df["Profit_Margin"] = (df["Profit"] / df["Sales"].replace(0, pd.NA)) * 100
+    # Drop invalid dates
+    df = df.dropna(subset=["Order_Date"])
+
+    # Safe numeric conversion
+    for col in ["Sales", "Profit", "Discount"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    # Profit margin (safe division)
+    df["Profit_Margin"] = df["Profit"] / df["Sales"].replace(0, pd.NA) * 100
 
     return df
 
@@ -29,7 +41,7 @@ df = load_data()
 
 # ---------------- HEADER ----------------
 st.title("📊 Sales Intelligence & Decision Support System")
-st.caption("Business Insights • Profit Optimization • Forecasting")
+st.caption("End-to-End Analytics • Profitability • Data Quality Driven Insights")
 
 st.markdown("---")
 
@@ -40,50 +52,45 @@ min_date = df["Order_Date"].min()
 max_date = df["Order_Date"].max()
 
 date_range = st.sidebar.date_input(
-    "Date Range",
+    "Select Date Range",
     [min_date, max_date]
 )
 
-region = st.sidebar.multiselect(
-    "Region",
-    df["Region"].dropna().unique(),
-    default=df["Region"].dropna().unique()
-)
+region_list = df["Region"].dropna().unique().tolist()
+category_list = df["Category"].dropna().unique().tolist()
 
-category = st.sidebar.multiselect(
-    "Category",
-    df["Category"].dropna().unique(),
-    default=df["Category"].dropna().unique()
-)
+region = st.sidebar.multiselect("Region", region_list, default=region_list)
+category = st.sidebar.multiselect("Category", category_list, default=category_list)
 
 # ---------------- FILTER DATA ----------------
-df = df[
+filtered_df = df[
     (df["Region"].isin(region)) &
     (df["Category"].isin(category)) &
     (df["Order_Date"] >= pd.to_datetime(date_range[0])) &
     (df["Order_Date"] <= pd.to_datetime(date_range[1]))
 ]
 
-if df.empty:
+if filtered_df.empty:
     st.error("No data available for selected filters")
     st.stop()
 
-# ---------------- KPI SECTION ----------------
-st.subheader("📌 Key Metrics")
-
-total_sales = df["Sales"].sum()
-total_profit = df["Profit"].sum()
-orders = df["Order_ID"].nunique()
+# ---------------- KPI CALCULATION ----------------
+total_sales = filtered_df["Sales"].sum()
+total_profit = filtered_df["Profit"].sum()
+orders = filtered_df["Order_ID"].nunique()
 
 aov = total_sales / orders if orders else 0
-margin = (total_profit / total_sales) * 100 if total_sales else 0
+margin = (total_profit / total_sales * 100) if total_sales else 0
 
-monthly = df.groupby(df["Order_Date"].dt.to_period("M"))["Sales"].sum()
+monthly_sales = filtered_df.resample("M", on="Order_Date")["Sales"].sum()
 
-if len(monthly) > 1:
-    growth = ((monthly.iloc[-1] - monthly.iloc[-2]) / monthly.iloc[-2]) * 100
-else:
-    growth = 0
+growth = 0
+if len(monthly_sales) > 1:
+    growth = ((monthly_sales.iloc[-1] - monthly_sales.iloc[-2]) /
+              monthly_sales.iloc[-2]) * 100
+
+# ---------------- KPI DISPLAY ----------------
+st.subheader("📌 Key Metrics")
 
 c1, c2, c3, c4, c5 = st.columns(5)
 
@@ -95,51 +102,45 @@ c5.metric("📊 Margin", f"{margin:.2f}%")
 
 st.markdown("---")
 
-# ---------------- SMART INSIGHTS ----------------
-st.subheader("🧠 Key Insights")
+# ---------------- INSIGHTS ----------------
+st.subheader("🧠 Business Insights")
 
-region_sales = df.groupby("Region")["Sales"].sum()
+region_sales = filtered_df.groupby("Region")["Sales"].sum()
 top_region = region_sales.idxmax()
 
-category_profit = df.groupby("Category")["Profit"].sum()
-worst_category = category_profit.idxmin()
+category_profit = filtered_df.groupby("Category")["Profit"].sum()
 best_category = category_profit.idxmax()
+worst_category = category_profit.idxmin()
 
 col1, col2, col3 = st.columns(3)
 
-col1.success(f"🏆 {top_region} is driving maximum revenue")
-col2.warning(f"⚠️ {worst_category} has lowest profitability")
-col3.info("📉 Discounts may be impacting profit margins")
+col1.success(f"🏆 Top Region: {top_region}")
+col2.warning(f"⚠️ Lowest Profit Category: {worst_category}")
+col3.info(f"💡 Best Category: {best_category}")
 
 st.markdown("---")
 
 # ---------------- SALES TREND ----------------
 st.subheader("📈 Sales Trend")
 
-trend = df.resample("M", on="Order_Date")["Sales"].sum().reset_index()
+trend = filtered_df.resample("M", on="Order_Date")["Sales"].sum().reset_index()
 
 fig = px.line(trend, x="Order_Date", y="Sales", markers=True)
 st.plotly_chart(fig, use_container_width=True)
 
-# ---------------- CATEGORY PERFORMANCE ----------------
+# ---------------- CATEGORY ANALYSIS ----------------
 st.subheader("📦 Category Performance")
 
-cat = df.groupby("Category")[["Sales", "Profit"]].sum().reset_index()
+cat = filtered_df.groupby("Category")[["Sales", "Profit"]].sum().reset_index()
 
-fig = px.bar(
-    cat,
-    x="Category",
-    y="Profit",
-    color="Profit"
-)
-
+fig = px.bar(cat, x="Category", y="Profit", color="Profit")
 st.plotly_chart(fig, use_container_width=True)
 
 # ---------------- PROFIT VS SALES ----------------
 st.subheader("📊 Profit vs Sales")
 
 fig = px.scatter(
-    df,
+    filtered_df,
     x="Sales",
     y="Profit",
     color="Category",
@@ -151,65 +152,42 @@ st.plotly_chart(fig, use_container_width=True)
 # ---------------- LOSS MAKING PRODUCTS ----------------
 st.subheader("🚨 Loss-Making Products")
 
-loss = df[df["Profit"] < 0]
+loss_df = filtered_df[filtered_df["Profit"] < 0]
 
 st.dataframe(
-    loss[["Product_Name", "Sales", "Profit"]].head(10)
+    loss_df[["Product_Name", "Sales", "Profit"]].head(10)
 )
 
-st.warning("These products are causing profit leakage")
+st.warning(f"{len(loss_df)} loss-making transactions found")
 
 # ---------------- DISCOUNT IMPACT ----------------
-st.subheader("📉 Discount vs Profit")
+st.subheader("📉 Discount Impact")
 
-fig = px.scatter(df, x="Discount", y="Profit", color="Category")
+fig = px.scatter(filtered_df, x="Discount", y="Profit", color="Category")
 st.plotly_chart(fig, use_container_width=True)
 
 # ---------------- RISK INDICATORS ----------------
 st.subheader("🚨 Risk Indicators")
 
 if margin < 15:
-    st.error("Low profit margin → Immediate action required")
+    st.error("Low profit margin detected")
 
 if growth < 0:
-    st.error("Negative growth → Business decline risk")
+    st.error("Negative growth trend")
 
-if len(loss) > 0:
-    st.warning("Loss-making products detected")
+if len(loss_df) > 0:
+    st.warning("Loss-making products exist")
 
 st.markdown("---")
 
-# ---------------- FORECAST (SAFE IMPORT) ----------------
-st.subheader("🔮 Sales Forecast")
-
-try:
-    from prophet import Prophet
-
-    forecast_df = df.groupby(pd.Grouper(key="Order_Date", freq="M"))["Sales"].sum().reset_index()
-    forecast_df.columns = ["ds", "y"]
-
-    if len(forecast_df) > 2:
-        model = Prophet()
-        model.fit(forecast_df)
-
-        future = model.make_future_dataframe(periods=6, freq="M")
-        forecast = model.predict(future)
-
-        fig = px.line(forecast, x="ds", y="yhat")
-        st.plotly_chart(fig, use_container_width=True)
-
-        st.info("Forecast generated using Prophet model")
-
-except Exception as e:
-    st.warning("Forecasting module skipped (Prophet not available or data insufficient)")
-
 # ---------------- DOWNLOAD ----------------
 st.download_button(
-    "📥 Download Data",
-    df.to_csv(index=False),
-    "filtered_data.csv"
+    "📥 Download Filtered Data",
+    filtered_df.to_csv(index=False),
+    "filtered_sales_data.csv",
+    mime="text/csv"
 )
 
 # ---------------- FOOTER ----------------
 st.markdown("---")
-st.caption("🚀 Built by Vivek Saha")
+st.caption("🚀 Built by Vivek Saha | Sales Analytics Project")
