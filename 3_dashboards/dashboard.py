@@ -23,11 +23,9 @@ def load_data():
 
     # Safe datetime conversion
     df["Order_Date"] = pd.to_datetime(df["Order_Date"], errors="coerce")
-
-    # Remove invalid rows
     df = df.dropna(subset=["Order_Date"])
 
-    # Convert numeric safely
+    # Numeric conversion
     for col in ["Sales", "Profit", "Discount"]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
@@ -38,7 +36,7 @@ def load_data():
     # Profit Margin
     df["Profit_Margin"] = df["Profit"] / df["Sales"].replace(0, pd.NA) * 100
 
-    # SAFE TIME FEATURE (IMPORTANT FIX)
+    # Time feature (safe for grouping)
     df["YearMonth"] = df["Order_Date"].dt.to_period("M").astype(str)
 
     return df
@@ -48,7 +46,31 @@ df = load_data()
 
 # ---------------- HEADER ----------------
 st.title("📊 Sales Intelligence & Decision Support System")
-st.caption("Business Insights • Profitability • Data Quality Analytics")
+st.caption("Executive Analytics • Profitability Insights • Data Quality Driven Dashboard")
+
+st.markdown("---")
+
+# ---------------- EXECUTIVE SUMMARY (UPGRADED) ----------------
+st.subheader("📌 Executive Business Summary")
+
+total_sales = df["Sales"].sum()
+total_profit = df["Profit"].sum()
+total_orders = df["Order_ID"].nunique()
+
+profit_margin = (total_profit / total_sales * 100) if total_sales else 0
+
+col1, col2, col3 = st.columns(3)
+
+col1.metric("💰 Total Revenue", f"₹{total_sales:,.0f}")
+col2.metric("📈 Total Profit", f"₹{total_profit:,.0f}")
+col3.metric("🛒 Total Orders", f"{total_orders:,}")
+
+if profit_margin >= 20:
+    st.success(f"🟢 Strong Business Health | Margin: {profit_margin:.2f}%")
+elif profit_margin >= 10:
+    st.warning(f"🟡 Moderate Performance | Margin: {profit_margin:.2f}%")
+else:
+    st.error(f"🔴 Profitability Risk | Margin: {profit_margin:.2f}%")
 
 st.markdown("---")
 
@@ -89,7 +111,6 @@ orders = filtered_df["Order_ID"].nunique()
 aov = total_sales / orders if orders else 0
 margin = (total_profit / total_sales * 100) if total_sales else 0
 
-# Monthly trend (CLOUD SAFE FIX - NO resample)
 monthly_sales = (
     filtered_df.groupby("YearMonth")["Sales"]
     .sum()
@@ -130,7 +151,7 @@ worst_category = category_profit.idxmin()
 col1, col2, col3 = st.columns(3)
 
 col1.success(f"🏆 Top Region: {top_region}")
-col2.warning(f"⚠️ Lowest Profit Category: {worst_category}")
+col2.warning(f"⚠️ Low Profit Category: {worst_category}")
 col3.info(f"💡 Best Category: {best_category}")
 
 st.markdown("---")
@@ -171,7 +192,7 @@ st.dataframe(
     loss_df[["Product_Name", "Sales", "Profit"]].head(10)
 )
 
-st.warning(f"{len(loss_df)} loss-making transactions found")
+st.warning(f"⚠️ {len(loss_df)} loss-making transactions detected")
 
 # ---------------- DISCOUNT IMPACT ----------------
 st.subheader("📉 Discount Impact")
