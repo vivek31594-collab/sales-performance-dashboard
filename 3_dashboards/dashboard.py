@@ -21,10 +21,10 @@ def load_data():
     # Clean column names
     df.columns = df.columns.str.strip().str.replace(".", "_", regex=False)
 
-    # Safe date conversion
+    # Safe datetime conversion
     df["Order_Date"] = pd.to_datetime(df["Order_Date"], errors="coerce")
 
-    # Drop invalid dates
+    # Drop invalid dates (IMPORTANT FIX)
     df = df.dropna(subset=["Order_Date"])
 
     # Safe numeric conversion
@@ -32,7 +32,11 @@ def load_data():
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
-    # Profit margin (safe division)
+    # Fill remaining NaNs
+    df["Sales"] = df["Sales"].fillna(0)
+    df["Profit"] = df["Profit"].fillna(0)
+
+    # Profit margin (safe)
     df["Profit_Margin"] = df["Profit"] / df["Sales"].replace(0, pd.NA) * 100
 
     return df
@@ -74,6 +78,22 @@ if filtered_df.empty:
     st.error("No data available for selected filters")
     st.stop()
 
+# ---------------- TIME SERIES FIX (IMPORTANT) ----------------
+filtered_df = filtered_df.sort_values("Order_Date")
+
+monthly_sales = (
+    filtered_df
+    .set_index("Order_Date")
+    .resample("M")["Sales"]
+    .sum()
+)
+
+# Growth calculation
+growth = 0
+if len(monthly_sales) > 1:
+    growth = ((monthly_sales.iloc[-1] - monthly_sales.iloc[-2]) /
+              monthly_sales.iloc[-2]) * 100
+
 # ---------------- KPI CALCULATION ----------------
 total_sales = filtered_df["Sales"].sum()
 total_profit = filtered_df["Profit"].sum()
@@ -81,13 +101,6 @@ orders = filtered_df["Order_ID"].nunique()
 
 aov = total_sales / orders if orders else 0
 margin = (total_profit / total_sales * 100) if total_sales else 0
-
-monthly_sales = filtered_df.resample("M", on="Order_Date")["Sales"].sum()
-
-growth = 0
-if len(monthly_sales) > 1:
-    growth = ((monthly_sales.iloc[-1] - monthly_sales.iloc[-2]) /
-              monthly_sales.iloc[-2]) * 100
 
 # ---------------- KPI DISPLAY ----------------
 st.subheader("📌 Key Metrics")
@@ -123,7 +136,7 @@ st.markdown("---")
 # ---------------- SALES TREND ----------------
 st.subheader("📈 Sales Trend")
 
-trend = filtered_df.resample("M", on="Order_Date")["Sales"].sum().reset_index()
+trend = monthly_sales.reset_index()
 
 fig = px.line(trend, x="Order_Date", y="Sales", markers=True)
 st.plotly_chart(fig, use_container_width=True)
