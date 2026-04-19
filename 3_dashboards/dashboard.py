@@ -4,7 +4,7 @@ import plotly.express as px
 import numpy as np
 
 # =====================================================
-# 📊 PAGE CONFIG (EXECUTIVE LEVEL UI)
+# 🎯 PAGE CONFIG (EXECUTIVE LEVEL UI)
 # =====================================================
 st.set_page_config(
     page_title="Sales Intelligence Executive Dashboard",
@@ -13,7 +13,7 @@ st.set_page_config(
 )
 
 # =====================================================
-# 📥 DATA PIPELINE (AUTOMATION PROOF)
+# 📥 DATA PIPELINE (AUTOMATION LAYER)
 # =====================================================
 @st.cache_data
 def load_data():
@@ -23,24 +23,24 @@ def load_data():
         low_memory=False
     )
 
-    # Clean columns
+    # ---------------- CLEANING ----------------
     df.columns = df.columns.str.strip().str.replace(".", "_", regex=False)
 
-    # Date handling
     df["Order_Date"] = pd.to_datetime(df["Order_Date"], errors="coerce")
     df = df.dropna(subset=["Order_Date"])
 
-    # Numeric safety
     for col in ["Sales", "Profit", "Discount"]:
         df[col] = pd.to_numeric(df[col], errors="coerce")
 
     df["Sales"] = df["Sales"].fillna(0)
     df["Profit"] = df["Profit"].fillna(0)
 
-    # Feature engineering
-    df["Profit_Margin"] = np.where(df["Sales"] > 0,
-                                   (df["Profit"] / df["Sales"]) * 100,
-                                   0)
+    # ---------------- FEATURE ENGINEERING ----------------
+    df["Profit_Margin"] = np.where(
+        df["Sales"] > 0,
+        (df["Profit"] / df["Sales"]) * 100,
+        0
+    )
 
     df["YearMonth"] = df["Order_Date"].dt.to_period("M").astype(str)
 
@@ -50,23 +50,24 @@ def load_data():
 df = load_data()
 
 # =====================================================
-# 🧭 EXECUTIVE STORY FLOW (IMPORTANT FOR INTERVIEW)
+# 🧭 UPGRADE 1: STRONG STORY FLOW (IMPORTANT FOR INTERVIEW)
 # =====================================================
 st.title("📊 Sales Intelligence & Executive Decision System")
 
-with st.expander("📌 End-to-End Data Flow (Pipeline Proof)"):
+with st.expander("🧭 End-to-End Business Data Story (Click to Expand)"):
     st.markdown("""
-    **1. Data Ingestion → CSV Dataset**  
-    **2. Data Cleaning → Missing values, type correction**  
-    **3. Feature Engineering → Margin, Time series features**  
-    **4. Analytics Layer → KPIs, segmentation, trends**  
-    **5. Decision Layer → Business recommendations**
+    **1️⃣ Data Ingestion → Raw Sales CSV**  
+    **2️⃣ Data Cleaning → Missing values, type correction, formatting**  
+    **3️⃣ Feature Engineering → Profit margin, time-based features**  
+    **4️⃣ Analytics Layer → KPIs, segmentation, trends**  
+    **5️⃣ Advanced Insights → Pareto, risk detection, anomalies**  
+    **6️⃣ Decision Layer → Business recommendations**
     """)
 
 st.markdown("---")
 
 # =====================================================
-# 📌 EXECUTIVE SCORECARD (NEW UPGRADE)
+# 📌 EXECUTIVE SUMMARY (UI POLISH)
 # =====================================================
 total_sales = df["Sales"].sum()
 total_profit = df["Profit"].sum()
@@ -74,17 +75,21 @@ orders = df["Order_ID"].nunique()
 
 margin = (total_profit / total_sales * 100) if total_sales else 0
 
-null_ratio = df.isnull().sum().sum() / (len(df) * len(df.columns)) * 100
+# =====================================================
+# 🧪 UPGRADE 2: DATA QUALITY + PIPELINE SCORE
+# =====================================================
+total_cells = len(df) * len(df.columns)
+null_ratio = df.isnull().sum().sum() / total_cells * 100
 duplicate_ratio = df.duplicated().sum() / len(df) * 100
 
-data_quality = max(0, 100 - (null_ratio + duplicate_ratio))
+data_quality_score = max(0, 100 - (null_ratio + duplicate_ratio))
 
-# Business Health Index (NEW)
-business_score = (
+# Business Health Index (ADVANCED METRIC)
+business_health = (
     (margin * 0.4) +
-    (data_quality * 0.3) +
-    (min(100, orders / 100) * 0.3)
-)
+    (data_quality_score * 0.4) +
+    (min(100, orders / 100))
+) / 2
 
 col1, col2, col3 = st.columns(3)
 
@@ -92,14 +97,17 @@ col1.metric("💰 Revenue", f"₹{total_sales:,.0f}")
 col2.metric("📈 Profit", f"₹{total_profit:,.0f}")
 col3.metric("🛒 Orders", f"{orders:,}")
 
-st.progress(int(data_quality))
+st.progress(int(data_quality_score))
 
-st.success(f"📊 Business Health Score: {business_score:.2f}/100")
+st.success(f"📊 Business Health Score: {business_health:.2f}/100")
+
+if data_quality_score < 80:
+    st.warning("⚠️ Data quality below enterprise benchmark")
 
 st.markdown("---")
 
 # =====================================================
-# 🔍 FILTERS
+# 🔍 FILTERS (CLEAN UI)
 # =====================================================
 st.sidebar.header("🔍 Business Filters")
 
@@ -128,7 +136,7 @@ filtered_df = df[
 ]
 
 if filtered_df.empty:
-    st.error("No data for selected filters")
+    st.error("No data found for selected filters")
     st.stop()
 
 # =====================================================
@@ -157,16 +165,16 @@ c5.metric("Margin", f"{margin:.2f}%")
 st.markdown("---")
 
 # =====================================================
-# 🧠 ADVANCED ANALYTICS LAYER (REAL INTERVIEW LEVEL)
+# 🧠 UPGRADE 3: ADVANCED ANALYTICS LAYER
 # =====================================================
 
 st.subheader("🧠 Advanced Analytics Layer")
 
 # Pareto Analysis (80/20 Rule)
-top_products = filtered_df.groupby("Product_Name")["Sales"].sum().sort_values(ascending=False)
-pareto_impact = top_products.cumsum() / top_products.sum() * 100
+product_sales = filtered_df.groupby("Product_Name")["Sales"].sum().sort_values(ascending=False)
+pareto = product_sales.cumsum() / product_sales.sum() * 100
 
-high_impact_products = pareto_impact[pareto_impact <= 80]
+top_80_products = pareto[pareto <= 80]
 
 # Segmentation
 region_sales = filtered_df.groupby("Region")["Sales"].sum()
@@ -187,7 +195,7 @@ col3.info(f"💡 Best Category: {best_category}")
 st.markdown("---")
 
 # =====================================================
-# 📈 VISUALIZATION
+# 📈 VISUALS (EXECUTIVE POLISH)
 # =====================================================
 st.subheader("📈 Sales Trend")
 
@@ -217,7 +225,9 @@ st.plotly_chart(fig, use_container_width=True)
 st.subheader("🚨 Loss-Making Products")
 
 loss_df = filtered_df[filtered_df["Profit"] < 0]
+
 st.dataframe(loss_df[["Product_Name", "Sales", "Profit"]].head(10))
+st.warning(f"{len(loss_df)} loss-making records found")
 
 # =====================================================
 # 📉 DISCOUNT IMPACT
@@ -228,32 +238,32 @@ fig = px.scatter(filtered_df, x="Discount", y="Profit", color="Category")
 st.plotly_chart(fig, use_container_width=True)
 
 # =====================================================
-# 📌 BUSINESS RECOMMENDATION ENGINE (IMPORTANT)
+# 📌 BUSINESS RECOMMENDATION ENGINE (UPGRADED)
 # =====================================================
 st.subheader("📌 Business Recommendations")
 
 recommendations = []
 
 if margin < 15:
-    recommendations.append("Increase pricing efficiency to improve margin")
+    recommendations.append("Improve pricing strategy to increase profit margin")
 
 if growth < 0:
-    recommendations.append("Launch sales recovery strategy")
+    recommendations.append("Implement sales recovery strategy")
 
 if len(loss_df) > 0:
-    recommendations.append("Stop or redesign loss-making products")
+    recommendations.append("Eliminate or redesign loss-making products")
 
-if data_quality < 80:
-    recommendations.append("Improve data pipeline quality")
+if data_quality_score < 80:
+    recommendations.append("Improve data pipeline and validation system")
 
-if len(high_impact_products) < len(top_products) * 0.2:
-    recommendations.append("Focus on high-value product segmentation")
+if len(top_80_products) < len(product_sales) * 0.2:
+    recommendations.append("Focus on high-value product concentration (Pareto optimization)")
+
+if not recommendations:
+    st.success("Business performance is optimized 🚀")
 
 for r in recommendations:
     st.write("•", r)
-
-if not recommendations:
-    st.success("Business performance is stable and optimized 🚀")
 
 # =====================================================
 # 📥 EXPORT
@@ -269,4 +279,4 @@ st.download_button(
 # FOOTER
 # =====================================================
 st.markdown("---")
-st.caption("🚀 Production-Level Analytics System | Vivek Saha")
+st.caption("🚀 Production-Level Analytics System | Built by Vivek Saha")
