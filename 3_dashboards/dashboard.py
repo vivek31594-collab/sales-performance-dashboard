@@ -44,11 +44,24 @@ df = load_data().sort_values("Order.Date")
 # =====================================================
 # 📊 MONTHLY TREND (FIXED + CLEAN)
 # =====================================================
+
+# =====================================================
+# 📈 FIXED MONTHLY TREND (STREAMLIT CLOUD SAFE)
+# =====================================================
+
+df["Order.Date"] = pd.to_datetime(df["Order.Date"], errors="coerce")
+df = df.dropna(subset=["Order.Date"])
+
 monthly = (
-    df.groupby(pd.Grouper(key="Order.Date", freq="M"))
-    .agg({"Sales": "sum", "Profit": "sum"})
-    .sort_index()
+    df.set_index("Order.Date")
+    .resample("MS")   # Month Start (MOST STABLE FIX)
+    .agg({
+        "Sales": "sum",
+        "Profit": "sum"
+    })
 )
+
+monthly = monthly.sort_index()
 
 # =====================================================
 # 🧭 HEADER
