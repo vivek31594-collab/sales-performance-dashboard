@@ -4,6 +4,7 @@ import plotly.express as px
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import os
 
 # =====================================================
 # ⚙️ PAGE CONFIG
@@ -15,16 +16,19 @@ st.set_page_config(
 )
 
 # =====================================================
-# 📥 LOAD DATA
+# 📥 LOAD DATA (DEPLOYMENT SAFE)
 # =====================================================
 @st.cache_data
 def load_data():
-    df = pd.read_csv(
-        r"C:\Users\User\Downloads\sales-analysis-dashboard\1_data\processed\cleanedsales.csv",
-        encoding="cp1252",
-        low_memory=False
-    )
+    file_path = "1_data/processed/cleanedsales.csv"
 
+    if not os.path.exists(file_path):
+        st.error("❌ Data file not found. Check GitHub repo structure.")
+        st.stop()
+
+    df = pd.read_csv(file_path, encoding="cp1252", low_memory=False)
+
+    # CLEANING
     df.columns = df.columns.str.strip().str.replace(".", "_", regex=False)
 
     df["Order_Date"] = pd.to_datetime(df["Order_Date"], errors="coerce")
@@ -36,13 +40,17 @@ def load_data():
     df["Sales"] = df["Sales"].fillna(0)
     df["Profit"] = df["Profit"].fillna(0)
 
-    df["Profit_Margin"] = np.where(df["Sales"] > 0,
-                                  (df["Profit"] / df["Sales"]) * 100,
-                                  0)
+    # FEATURE ENGINEERING
+    df["Profit_Margin"] = np.where(
+        df["Sales"] > 0,
+        (df["Profit"] / df["Sales"]) * 100,
+        0
+    )
 
     df["YearMonth"] = df["Order_Date"].dt.to_period("M").astype(str)
 
     return df
+
 
 df = load_data()
 
@@ -61,7 +69,7 @@ st.info("""
 st.markdown("---")
 
 # =====================================================
-# 📌 KPIs
+# 📌 GLOBAL KPIs
 # =====================================================
 total_sales = df["Sales"].sum()
 total_profit = df["Profit"].sum()
@@ -92,14 +100,21 @@ region = st.sidebar.multiselect(
     df["Region"].dropna().unique()
 )
 
+category = st.sidebar.multiselect(
+    "Category",
+    df["Category"].dropna().unique(),
+    df["Category"].dropna().unique()
+)
+
 filtered_df = df[
     (df["Region"].isin(region)) &
+    (df["Category"].isin(category)) &
     (df["Order_Date"] >= pd.to_datetime(date_range[0])) &
     (df["Order_Date"] <= pd.to_datetime(date_range[1]))
 ]
 
 if filtered_df.empty:
-    st.error("No data available")
+    st.warning("⚠️ No data available for selected filters")
     st.stop()
 
 # =====================================================
@@ -112,21 +127,23 @@ orders = filtered_df["Order_ID"].nunique()
 aov = sales / orders if orders else 0
 margin = (profit / sales * 100) if sales else 0
 
-st.subheader("KPI Dashboard")
+monthly = filtered_df.groupby("YearMonth")["Sales"].sum().reset_index()
+growth = monthly["Sales"].pct_change().iloc[-1] * 100 if len(monthly) > 1 else 0
 
-c1, c2, c3, c4 = st.columns(4)
-c1.metric("Sales", f"₹{sales:,.0f}")
+st.subheader("📊 KPI Dashboard")
+
+c1, c2, c3, c4, c5 = st.columns(5)
+c1.metric("Sales", f"₹{sales:,.0f}", f"{growth:.2f}% MoM")
 c2.metric("Profit", f"₹{profit:,.0f}")
 c3.metric("Orders", orders)
-c4.metric("Margin", f"{margin:.2f}%")
+c4.metric("AOV", f"₹{aov:,.2f}")
+c5.metric("Margin", f"{margin:.2f}%")
 
 st.markdown("---")
 
 # =====================================================
 # 📈 PLOTLY TREND
 # =====================================================
-monthly = filtered_df.groupby("YearMonth")["Sales"].sum().reset_index()
-
 fig = px.line(
     monthly,
     x="YearMonth",
@@ -138,13 +155,13 @@ fig = px.line(
 st.plotly_chart(fig, width="stretch")
 
 # =====================================================
-# 📉 SEABORN (NOTEBOOK STYLE)
+# 📉 SEABORN ANALYSIS
 # =====================================================
 st.subheader("📉 Sales vs Profit Analysis")
 
 sns.set_style("whitegrid")
 
-fig2, ax = plt.subplots(figsize=(8,5))
+fig2, ax = plt.subplots(figsize=(8, 5))
 
 sns.scatterplot(
     data=filtered_df,
@@ -172,7 +189,6 @@ st.pyplot(fig2)
 st.subheader("📊 Sales by Region")
 
 region_sales = filtered_df.groupby("Region")["Sales"].sum().reset_index()
-
 st.dataframe(region_sales)
 
 # =====================================================
@@ -181,8 +197,9 @@ st.dataframe(region_sales)
 st.subheader("🚨 Loss Making Transactions")
 
 loss_df = filtered_df[filtered_df["Profit"] < 0]
-
 st.dataframe(loss_df[["Product_Name", "Sales", "Profit"]].head(10))
+
+st.warning(f"{len(loss_df)} loss transactions detected")
 
 # =====================================================
 # 🧠 INSIGHTS
@@ -190,8 +207,8 @@ st.dataframe(loss_df[["Product_Name", "Sales", "Profit"]].head(10))
 st.subheader("🧠 Key Insights")
 
 st.write("• High sales do not always result in high profit")
-st.write("• Some regions outperform others significantly")
-st.write("• Loss-making transactions exist and need attention")
+st.write("• Regional performance varies significantly")
+st.write("• Loss-making transactions require attention")
 
 # =====================================================
 # 📌 ACTIONS
@@ -199,19 +216,22 @@ st.write("• Loss-making transactions exist and need attention")
 st.subheader("📌 Business Actions")
 
 if margin < 15:
-    st.write("• Improve pricing or reduce discount")
+    st.write("• Improve pricing or reduce discount dependency")
 
 if len(loss_df) > 0:
     st.write("• Investigate loss-making products")
 
-if len(loss_df) == 0:
-    st.success("Business performance is stable")
+if growth < 0:
+    st.write("• Implement sales recovery strategy")
+
+if margin >= 15 and len(loss_df) == 0:
+    st.success("✔ Business performance is stable")
 
 # =====================================================
 # 📥 EXPORT
 # =====================================================
 st.download_button(
-    "Download Data",
+    "📥 Download Data",
     filtered_df.to_csv(index=False),
     "sales_data.csv",
     mime="text/csv"
@@ -220,4 +240,4 @@ st.download_button(
 # =====================================================
 # FOOTER
 # =====================================================
-st.caption("Executive Dashboard | Vivek Saha")
+st.caption("🚀 Production-Ready Executive Dashboard | Vivek Saha")
