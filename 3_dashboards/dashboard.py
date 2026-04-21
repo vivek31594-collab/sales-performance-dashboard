@@ -192,17 +192,40 @@ if volatility > 0.5:
 else:
     st.success("✅ Stable demand pattern.")
 # =====================================================
-# ⚠️ LOSS ANALYSIS
+# 📉 LOSS TREND ANALYSIS (CRITICAL ADDITION)
 # =====================================================
-st.markdown("## ⚠️ Profit Leakage Analysis")
 
-top_loss = loss_df.groupby("Product.Name")["Profit"].sum().sort_values().head(10)
+st.markdown("### 📉 Loss Trend Over Time")
 
-st.bar_chart(top_loss)
+loss_monthly = (
+    loss_df.set_index("Order.Date")
+    .resample("MS")
+    .agg({"Profit": "sum"})
+)
 
-st.write(f"Total Loss Impact: **{loss_impact:,.0f}**")
+# Convert to positive for readability
+loss_monthly["Loss"] = loss_monthly["Profit"].abs()
 
-st.markdown("---")
+st.line_chart(loss_monthly["Loss"])
+
+# =====================================================
+# 🧠 LOSS INSIGHT
+# =====================================================
+
+latest_loss = loss_monthly["Loss"].iloc[-1]
+avg_loss = loss_monthly["Loss"].mean()
+
+st.markdown("### 🧠 Loss Insights")
+
+if latest_loss > avg_loss:
+    st.warning("⚠️ Recent losses are higher than average → risk increasing.")
+else:
+    st.success("✅ Loss trend is improving over time.")
+
+st.write(f"""
+- 📊 Average Monthly Loss: **{avg_loss:,.0f}**  
+- 📉 Latest Month Loss: **{latest_loss:,.0f}**
+""")
 
 # =====================================================
 # 📊 BUSINESS DRIVERS
