@@ -7,10 +7,10 @@ import plotly.express as px
 import os
 
 # =====================================================
-# ⚙️ PAGE CONFIG (MUST BE FIRST STREAMLIT COMMAND)
+# ⚙️ PAGE CONFIG (MUST BE FIRST)
 # =====================================================
 st.set_page_config(
-    page_title="Executive Sales Intelligence System",
+    page_title="Sales Intelligence Dashboard",
     page_icon="📊",
     layout="wide"
 )
@@ -18,23 +18,23 @@ st.set_page_config(
 sns.set_style("whitegrid")
 
 # =====================================================
-# 📥 LOAD DATA (SAFE FOR LOCAL + STREAMLIT CLOUD)
+# 📥 LOAD DATA
 # =====================================================
 @st.cache_data
 def load_data():
     file_path = "1_data/processed/cleanedsales.csv"
 
     if not os.path.exists(file_path):
-        st.error("❌ Dataset not found. Check repository structure.")
+        st.error("Dataset not found. Check file path in repo.")
         st.stop()
 
     df = pd.read_csv(file_path, encoding="cp1252", low_memory=False)
 
-    # Date handling
+    # Date conversion
     df["Order.Date"] = pd.to_datetime(df["Order.Date"], errors="coerce")
     df = df.dropna(subset=["Order.Date"])
 
-    # Numeric cleanup
+    # Numeric cleaning
     for col in ["Sales", "Profit", "Discount"]:
         df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
 
@@ -46,93 +46,146 @@ df = load_data()
 # =====================================================
 # 🧭 HEADER
 # =====================================================
-st.title("📊 Sales Performance Dashboard")
-st.markdown("### Business Intelligence & Advisory Insights System")
+st.title("📊 Sales Intelligence Dashboard")
+st.markdown("### Business Performance + Insights + Analytics (PwC Style)")
 
 st.markdown("---")
 
 # =====================================================
-# 📌 EXECUTIVE SUMMARY
+# 📌 KPI SUMMARY
 # =====================================================
-st.markdown("## 📌 Executive Summary")
+st.markdown("## 📌 Business KPIs")
 
 total_sales = df["Sales"].sum()
 total_profit = df["Profit"].sum()
+orders = df["Order.ID"].nunique()
 profit_margin = (total_profit / total_sales * 100) if total_sales else 0
+aov = total_sales / orders if orders else 0
 
-c1, c2, c3 = st.columns(3)
-c1.metric("💰 Total Sales", f"{total_sales:,.0f}")
-c2.metric("📈 Total Profit", f"{total_profit:,.0f}")
-c3.metric("📊 Profit Margin", f"{profit_margin:.2f}%")
-
-st.markdown("""
-### 🔎 Key Business Insights
-- Strong overall revenue performance
-- Profitability varies across categories
-- Certain products create profit leakage
-""")
+c1, c2, c3, c4 = st.columns(4)
+c1.metric("💰 Sales", f"{total_sales:,.0f}")
+c2.metric("📈 Profit", f"{total_profit:,.0f}")
+c3.metric("🛒 Orders", orders)
+c4.metric("📊 Margin", f"{profit_margin:.2f}%")
 
 st.markdown("---")
 
 # =====================================================
 # ⚠️ LOSS ANALYSIS
 # =====================================================
+st.markdown("## ⚠️ Loss-Making Products Analysis")
+
 loss_df = df[df["Profit"] < 0]
-loss_impact = loss_df["Profit"].sum()
 
-st.markdown("## ⚠️ Loss-Making Products")
+top_loss = (
+    loss_df.groupby("Product.Name")["Profit"]
+    .sum()
+    .sort_values()
+    .head(10)
+)
 
-top_loss = loss_df.groupby("Product.Name")["Profit"].sum().sort_values().head(10)
 st.bar_chart(top_loss)
 
-st.markdown(f"### Total Loss Impact: {loss_impact:,.0f}")
+st.markdown(f"### Total Loss Impact: {loss_df['Profit'].sum():,.0f}")
 
 st.markdown("---")
 
 # =====================================================
-# 📈 FIXED TREND ANALYSIS (CRITICAL FIX)
+# 📈 TREND ANALYSIS (FIXED)
 # =====================================================
-st.markdown("## 📈 Monthly Sales & Profit Trend")
+st.markdown("## 📈 Sales & Profit Trend Over Time")
 
-monthly_trend = df.groupby(pd.Grouper(key="Order.Date", freq="M"))[["Sales", "Profit"]].sum()
+monthly = (
+    df.groupby(pd.Grouper(key="Order.Date", freq="M"))
+    .agg({"Sales": "sum", "Profit": "sum"})
+    .sort_index()
+)
 
-st.markdown("### 📊 Sales Trend")
-st.line_chart(monthly_trend["Sales"])
+monthly.index = monthly.index.to_period("M").astype(str)
 
-st.markdown("### 📊 Profit Trend")
-st.line_chart(monthly_trend["Profit"])
+st.line_chart(monthly["Sales"])
+st.line_chart(monthly["Profit"])
 
 st.markdown("---")
 
 # =====================================================
-# 🧠 PWc INSIGHT ENGINE (CONSULTING STYLE)
+# 📊 PLOT 1: SALES BY REGION
 # =====================================================
-st.markdown("## 🧠 Executive AI Insights")
+st.markdown("## 📊 Sales by Region")
+
+region_sales = df.groupby("Region")["Sales"].sum().sort_values()
+
+fig1, ax1 = plt.subplots(figsize=(10,5))
+sns.barplot(x=region_sales.values, y=region_sales.index, ax=ax1)
+ax1.set_title("Sales by Region")
+st.pyplot(fig1)
+
+# =====================================================
+# 📊 PLOT 2: PROFIT BY CATEGORY
+# =====================================================
+st.markdown("## 📊 Profit by Category")
+
+category_profit = df.groupby("Category")["Profit"].sum().sort_values()
+
+fig2, ax2 = plt.subplots(figsize=(8,4))
+sns.barplot(x=category_profit.values, y=category_profit.index, ax=ax2)
+ax2.set_title("Profit by Category")
+st.pyplot(fig2)
+
+# =====================================================
+# 📊 PLOT 3: TOP PRODUCTS
+# =====================================================
+st.markdown("## 📦 Top Products by Sales")
+
+top_products = df.groupby("Product.Name")["Sales"].sum().sort_values(ascending=False).head(10)
+
+fig3, ax3 = plt.subplots(figsize=(10,5))
+sns.barplot(x=top_products.values, y=top_products.index, ax=ax3)
+ax3.set_title("Top Products")
+st.pyplot(fig3)
+
+# =====================================================
+# 📊 PLOT 4: SALES vs PROFIT RELATIONSHIP
+# =====================================================
+st.markdown("## 📊 Sales vs Profit Relationship")
+
+fig4 = px.scatter(
+    df,
+    x="Sales",
+    y="Profit",
+    color="Category",
+    title="Sales vs Profit"
+)
+
+st.plotly_chart(fig4, use_container_width=True)
+
+st.markdown("---")
+
+# =====================================================
+# 🧠 BUSINESS INSIGHTS ENGINE
+# =====================================================
+st.markdown("## 🧠 Key Business Insights")
 
 insights = []
 
-# Profitability check
-if total_sales > 0:
-    margin_check = (total_profit / total_sales) * 100
-    if margin_check < 10:
-        insights.append("⚠️ Low profitability indicates pricing or cost inefficiency.")
-    else:
-        insights.append("✅ Healthy profitability maintained.")
+if profit_margin < 10:
+    insights.append("⚠️ Low profit margin indicates pricing or cost inefficiency.")
+else:
+    insights.append("✅ Healthy profit margin indicates stable business performance.")
 
-# Growth check
-growth = monthly_trend["Sales"].pct_change().iloc[-1] * 100 if len(monthly_trend) > 1 else 0
+if len(loss_df) > 0:
+    loss_ratio = abs(loss_df["Profit"].sum()) / total_profit
+    if loss_ratio > 0.3:
+        insights.append("🚨 High losses impacting profitability significantly.")
+    else:
+        insights.append("⚠️ Limited loss-making products detected.")
+
+growth = monthly["Sales"].pct_change().iloc[-1] * 100 if len(monthly) > 1 else 0
 
 if growth < 0:
-    insights.append("📉 Declining sales trend detected.")
+    insights.append("📉 Sales are declining in recent months.")
 else:
-    insights.append("📈 Positive growth momentum observed.")
-
-# Loss impact
-if len(loss_df) > 0:
-    if abs(loss_impact) > total_profit * 0.3:
-        insights.append("🚨 High profit leakage from loss-making products.")
-    else:
-        insights.append("⚠️ Moderate loss-making segments exist.")
+    insights.append("📈 Sales show positive growth trend.")
 
 for i, ins in enumerate(insights, 1):
     st.write(f"{i}. {ins}")
@@ -140,134 +193,25 @@ for i, ins in enumerate(insights, 1):
 st.markdown("---")
 
 # =====================================================
-# 📊 FILTERS
+# 📌 BUSINESS RECOMMENDATIONS
 # =====================================================
-st.sidebar.header("Filters")
+st.markdown("## 📌 Recommendations")
 
-date_range = st.sidebar.date_input(
-    "Date Range",
-    [df["Order.Date"].min(), df["Order.Date"].max()]
-)
-
-region = st.sidebar.multiselect(
-    "Region",
-    df["Region"].dropna().unique(),
-    df["Region"].dropna().unique()
-)
-
-category = st.sidebar.multiselect(
-    "Category",
-    df["Category"].dropna().unique(),
-    df["Category"].dropna().unique()
-)
-
-filtered_df = df[
-    (df["Region"].isin(region)) &
-    (df["Category"].isin(category)) &
-    (df["Order.Date"] >= pd.to_datetime(date_range[0])) &
-    (df["Order.Date"] <= pd.to_datetime(date_range[1]))
-]
-
-if filtered_df.empty:
-    st.warning("No data available for selected filters")
-    st.stop()
-
-# =====================================================
-# 📊 KPI DASHBOARD
-# =====================================================
-sales = filtered_df["Sales"].sum()
-profit = filtered_df["Profit"].sum()
-orders = filtered_df["Order.ID"].nunique()
-
-aov = sales / orders if orders else 0
-margin = (profit / sales * 100) if sales else 0
-
-monthly_filtered = filtered_df.groupby(pd.Grouper(key="Order.Date", freq="M"))["Sales"].sum()
-growth_filtered = monthly_filtered.pct_change().iloc[-1] * 100 if len(monthly_filtered) > 1 else 0
-
-st.subheader("📊 Live KPI Dashboard")
-
-c1, c2, c3, c4, c5 = st.columns(5)
-c1.metric("Sales", f"₹{sales:,.0f}", f"{growth_filtered:.2f}% MoM")
-c2.metric("Profit", f"₹{profit:,.0f}")
-c3.metric("Orders", orders)
-c4.metric("AOV", f"₹{aov:,.2f}")
-c5.metric("Margin", f"{margin:.2f}%")
+st.write("• Optimize pricing strategy for low-margin segments")
+st.write("• Reduce or fix loss-making products")
+st.write("• Focus marketing on high-performing categories")
+st.write("• Improve regional underperforming areas")
 
 st.markdown("---")
 
 # =====================================================
-# 📊 REGION ANALYSIS
-# =====================================================
-st.subheader("📊 Sales by Region")
-
-region_sales = filtered_df.groupby("Region")["Sales"].sum().sort_values()
-
-fig1, ax1 = plt.subplots(figsize=(10,5))
-sns.barplot(x=region_sales.values, y=region_sales.index, ax=ax1)
-st.pyplot(fig1)
-
-# =====================================================
-# 📊 SUB-CATEGORY PROFIT
-# =====================================================
-st.subheader("📊 Profit by Sub-Category")
-
-subcat_profit = filtered_df.groupby("Sub.Category")["Profit"].sum().sort_values()
-
-fig2, ax2 = plt.subplots(figsize=(12,6))
-sns.barplot(x=subcat_profit.values, y=subcat_profit.index, ax=ax2)
-st.pyplot(fig2)
-
-# =====================================================
-# 📦 TOP PRODUCTS
-# =====================================================
-st.subheader("📦 Top Products")
-
-top_products = filtered_df.groupby("Product.Name")["Sales"].sum().sort_values(ascending=False).head(10)
-
-fig3, ax3 = plt.subplots(figsize=(10,5))
-sns.barplot(x=top_products.values, y=top_products.index, ax=ax3)
-st.pyplot(fig3)
-
-# =====================================================
-# 🚨 LOSS TRANSACTIONS
-# =====================================================
-st.subheader("🚨 Loss Transactions")
-
-st.dataframe(filtered_df[filtered_df["Profit"] < 0][["Product.Name", "Sales", "Profit"]].head(10))
-
-# =====================================================
-# 📌 ACTIONS
-# =====================================================
-st.subheader("📌 Business Actions")
-
-if margin < 15:
-    st.write("• Improve pricing strategy")
-
-if len(loss_df) > 0:
-    st.write("• Fix loss-making products")
-
-if growth_filtered < 0:
-    st.write("• Improve sales growth strategy")
-
-# =====================================================
-# 📌 RECOMMENDATIONS
-# =====================================================
-st.markdown("## 📌 Business Recommendations")
-
-st.write("🔴 Reduce focus on loss-making products.")
-st.write("📊 Optimize pricing and discount strategy.")
-st.write("🚚 Improve logistics efficiency.")
-st.write("🎯 Focus on high-margin categories.")
-
-# =====================================================
-# 📥 DOWNLOAD
+# 📥 DOWNLOAD DATA
 # =====================================================
 st.download_button(
-    "📥 Download Data",
-    filtered_df.to_csv(index=False),
+    "📥 Download Clean Data",
+    df.to_csv(index=False),
     "sales_data.csv",
     mime="text/csv"
 )
 
-st.caption("🚀 PwC-Level Executive Sales Intelligence Dashboard")
+st.caption("🚀 Professional Sales Intelligence Dashboard (PwC-Level)")
