@@ -7,7 +7,7 @@ import plotly.express as px
 import os
 
 # =====================================================
-# ⚙️ PAGE CONFIG (FIRST STREAMLIT COMMAND)
+# ⚙️ PAGE CONFIG (MUST BE FIRST STREAMLIT COMMAND)
 # =====================================================
 st.set_page_config(
     page_title="Executive Sales Intelligence System",
@@ -18,14 +18,14 @@ st.set_page_config(
 sns.set_style("whitegrid")
 
 # =====================================================
-# 📥 LOAD DATA (SINGLE SOURCE OF TRUTH)
+# 📥 LOAD DATA (SAFE FOR LOCAL + STREAMLIT CLOUD)
 # =====================================================
 @st.cache_data
 def load_data():
     file_path = "1_data/processed/cleanedsales.csv"
 
     if not os.path.exists(file_path):
-        st.error("❌ Dataset not found. Check file path.")
+        st.error("❌ Dataset not found. Check repository structure.")
         st.stop()
 
     df = pd.read_csv(file_path, encoding="cp1252", low_memory=False)
@@ -67,9 +67,9 @@ c3.metric("📊 Profit Margin", f"{profit_margin:.2f}%")
 
 st.markdown("""
 ### 🔎 Key Business Insights
-- 📊 Strong revenue performance overall
-- 📉 Profitability varies across segments
-- ⚠️ Certain products create profit leakage
+- Strong overall revenue performance
+- Profitability varies across categories
+- Certain products create profit leakage
 """)
 
 st.markdown("---")
@@ -90,15 +90,11 @@ st.markdown(f"### Total Loss Impact: {loss_impact:,.0f}")
 st.markdown("---")
 
 # =====================================================
-# 📈 FIXED TREND ANALYSIS (IMPORTANT FIX 🔥)
+# 📈 FIXED TREND ANALYSIS (CRITICAL FIX)
 # =====================================================
-st.markdown("## 📈 Monthly Sales & Profit Trend (Corrected)")
+st.markdown("## 📈 Monthly Sales & Profit Trend")
 
-# Proper time-based grouping (FIXED)
 monthly_trend = df.groupby(pd.Grouper(key="Order.Date", freq="M"))[["Sales", "Profit"]].sum()
-
-# Make index readable
-monthly_trend.index = monthly_trend.index.strftime("%Y-%m")
 
 st.markdown("### 📊 Sales Trend")
 st.line_chart(monthly_trend["Sales"])
@@ -106,22 +102,24 @@ st.line_chart(monthly_trend["Sales"])
 st.markdown("### 📊 Profit Trend")
 st.line_chart(monthly_trend["Profit"])
 
+st.markdown("---")
+
 # =====================================================
-# 🧠 PWc INSIGHT ENGINE
+# 🧠 PWc INSIGHT ENGINE (CONSULTING STYLE)
 # =====================================================
-st.markdown("## 🧠 Executive AI Insights (Consulting View)")
+st.markdown("## 🧠 Executive AI Insights")
 
 insights = []
 
-# Profitability
+# Profitability check
 if total_sales > 0:
     margin_check = (total_profit / total_sales) * 100
     if margin_check < 10:
-        insights.append("⚠️ Low profitability — pricing/cost structure issue.")
+        insights.append("⚠️ Low profitability indicates pricing or cost inefficiency.")
     else:
         insights.append("✅ Healthy profitability maintained.")
 
-# Growth
+# Growth check
 growth = monthly_trend["Sales"].pct_change().iloc[-1] * 100 if len(monthly_trend) > 1 else 0
 
 if growth < 0:
@@ -134,7 +132,7 @@ if len(loss_df) > 0:
     if abs(loss_impact) > total_profit * 0.3:
         insights.append("🚨 High profit leakage from loss-making products.")
     else:
-        insights.append("⚠️ Limited but notable loss-making segments exist.")
+        insights.append("⚠️ Moderate loss-making segments exist.")
 
 for i, ins in enumerate(insights, 1):
     st.write(f"{i}. {ins}")
@@ -175,7 +173,7 @@ if filtered_df.empty:
     st.stop()
 
 # =====================================================
-# 📊 KPI DASHBOARD (FILTERED)
+# 📊 KPI DASHBOARD
 # =====================================================
 sales = filtered_df["Sales"].sum()
 profit = filtered_df["Profit"].sum()
@@ -185,7 +183,6 @@ aov = sales / orders if orders else 0
 margin = (profit / sales * 100) if sales else 0
 
 monthly_filtered = filtered_df.groupby(pd.Grouper(key="Order.Date", freq="M"))["Sales"].sum()
-
 growth_filtered = monthly_filtered.pct_change().iloc[-1] * 100 if len(monthly_filtered) > 1 else 0
 
 st.subheader("📊 Live KPI Dashboard")
@@ -200,7 +197,7 @@ c5.metric("Margin", f"{margin:.2f}%")
 st.markdown("---")
 
 # =====================================================
-# 📈 REGION ANALYSIS
+# 📊 REGION ANALYSIS
 # =====================================================
 st.subheader("📊 Sales by Region")
 
