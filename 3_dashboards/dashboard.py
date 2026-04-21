@@ -42,7 +42,7 @@ def load_data():
 df = load_data().sort_values("Order.Date")
 
 # =====================================================
-# 📊 MONTHLY TREND (FIXED + STABLE)
+# 📊 MONTHLY TREND (SINGLE SOURCE)
 # =====================================================
 monthly = (
     df.set_index("Order.Date")
@@ -56,7 +56,6 @@ monthly = (
 # =====================================================
 st.title("📊 Executive Sales Intelligence Dashboard")
 st.markdown("### PwC-Style Business Intelligence System")
-
 st.markdown("---")
 
 # =====================================================
@@ -67,7 +66,6 @@ profit = df["Profit"].sum()
 orders = df["Order.ID"].nunique()
 
 margin = (profit / sales * 100) if sales else 0
-aov = sales / orders if orders else 0
 
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Revenue", f"{sales:,.0f}")
@@ -78,7 +76,7 @@ c4.metric("Margin %", f"{margin:.2f}%")
 st.markdown("---")
 
 # =====================================================
-# 🧠 EXECUTIVE INSIGHT ENGINE (UPGRADED)
+# 🧠 EXECUTIVE INSIGHTS
 # =====================================================
 st.markdown("## 🧠 Executive Business Health")
 
@@ -87,41 +85,29 @@ loss_impact = abs(loss_df["Profit"].sum())
 loss_ratio = loss_impact / profit if profit else 0
 
 growth = monthly["Sales"].pct_change().iloc[-1] * 100 if len(monthly) > 1 else 0
-volatility = monthly["Sales"].std() / monthly["Sales"].mean()
+volatility = monthly["Sales"].std() / monthly["Sales"].mean() if monthly["Sales"].mean() != 0 else 0
 
 insights = []
 
-# Revenue
-if sales > df["Sales"].mean() * len(df):
-    insights.append("Strong revenue base with consistent demand.")
+if margin < 10:
+    insights.append("Low profitability → pricing or cost issue.")
+elif margin < 25:
+    insights.append("Moderate profitability → optimization possible.")
 else:
-    insights.append("Moderate revenue performance with scaling opportunity.")
+    insights.append("Strong profitability.")
 
-# Profitability
-if margin >= 25:
-    insights.append("High profitability with efficient operations.")
-elif margin >= 10:
-    insights.append("Moderate profitability with optimization scope.")
+if loss_df.empty:
+    insights.append("No loss-making products.")
 else:
-    insights.append("Low profitability → pricing/cost issue detected.")
+    insights.append("Loss-making products impacting profit.")
 
-# Risk
-if loss_ratio > 0.4:
-    insights.append("High financial risk due to loss-heavy products.")
-elif len(loss_df) > 0:
-    insights.append("Controlled but present loss-making segments.")
-
-# Growth
-if growth > 5:
-    insights.append("Strong upward sales momentum.")
-elif growth > 0:
-    insights.append("Stable but slow growth.")
+if growth < 0:
+    insights.append("Sales declining → demand issue.")
 else:
-    insights.append("Sales decline detected.")
+    insights.append("Sales stable/growing.")
 
-# Volatility
 if volatility > 0.5:
-    insights.append("High volatility → unstable demand pattern.")
+    insights.append("High volatility in demand.")
 else:
     insights.append("Stable demand pattern.")
 
@@ -130,102 +116,74 @@ for i, ins in enumerate(insights, 1):
 
 st.markdown("---")
 
-
 # =====================================================
+# 📈 TREND ANALYSIS (FINAL)
 # =====================================================
-# 📈 BUSINESS TREND INTELLIGENCE (FINAL CORRECT VERSION)
-# =====================================================
-
 st.markdown("## 📈 Business Trend Intelligence")
-
-monthly = (
-    df.set_index("Order.Date")
-    .resample("MS")
-    .agg({"Sales": "sum", "Profit": "sum"})
-    .sort_index()
-)
 
 monthly["Sales_Growth"] = monthly["Sales"].pct_change() * 100
 monthly["Profit_Growth"] = monthly["Profit"].pct_change() * 100
 
-# =====================================================
-# 📊 COMBINED GRAPH (VERY IMPORTANT)
-# =====================================================
-st.markdown("### 📊 Sales vs Profit Trend")
 st.line_chart(monthly[["Sales", "Profit"]])
 
+# Safe extraction
+if not monthly.empty:
+    peak_month = monthly["Sales"].idxmax().strftime("%B %Y")
+    low_month = monthly["Sales"].idxmin().strftime("%B %Y")
+
+    st.write(f"""
+    - 📈 Peak Month: **{peak_month}**  
+    - 📉 Lowest Month: **{low_month}**  
+    - 📊 Avg Monthly Sales: **{monthly['Sales'].mean():,.0f}**
+    """)
+
+    latest_sales_growth = monthly["Sales_Growth"].iloc[-1]
+    latest_profit_growth = monthly["Profit_Growth"].iloc[-1]
+
+    if latest_sales_growth > 0 and latest_profit_growth > 0:
+        st.success("Growth in both sales and profit.")
+    elif latest_sales_growth > 0 and latest_profit_growth < 0:
+        st.warning("Sales up but profit down → margin issue.")
+    elif latest_sales_growth < 0 and latest_profit_growth < 0:
+        st.error("Both declining → demand issue.")
+    else:
+        st.info("Mixed trend.")
+
+st.markdown("---")
+
 # =====================================================
-# 🧠 BUSINESS INTERPRETATION
+# ⚠️ LOSS ANALYSIS (SAFE VERSION)
 # =====================================================
+st.markdown("## ⚠️ Profit Leakage Analysis")
 
-latest_sales_growth = monthly["Sales_Growth"].iloc[-1]
-latest_profit_growth = monthly["Profit_Growth"].iloc[-1]
-
-peak_month = monthly["Sales"].idxmax().strftime("%B %Y")
-low_month = monthly["Sales"].idxmin().strftime("%B %Y")
-
-st.markdown("### 🧠 Trend Insights")
-
-if latest_sales_growth > 0 and latest_profit_growth > 0:
-    st.success("📈 Revenue and profit both growing → strong business performance.")
-elif latest_sales_growth > 0 and latest_profit_growth < 0:
-    st.warning("⚠️ Sales rising but profit falling → margin issue (cost/discount problem).")
-elif latest_sales_growth < 0 and latest_profit_growth < 0:
-    st.error("📉 Sales and profit both declining → demand problem.")
+if loss_df.empty:
+    st.success("No loss-making transactions.")
 else:
-    st.info("📊 Mixed trend → requires deeper investigation.")
+    top_loss = loss_df.groupby("Product.Name")["Profit"].sum().sort_values().head(10)
+    st.bar_chart(top_loss)
 
-st.write(f"""
-- 📈 Peak Month: **{peak_month}**  
-- 📉 Lowest Month: **{low_month}**  
-- 📊 Average Monthly Sales: **{monthly['Sales'].mean():,.0f}**
-""")
+    st.write(f"Total Loss Impact: **{loss_impact:,.0f}**")
 
-# =====================================================
-# ⚠️ VOLATILITY CHECK
-# =====================================================
+    # SAFE LOSS TREND
+    loss_monthly = (
+        loss_df.set_index("Order.Date")
+        .resample("MS")
+        .agg({"Profit": "sum"})
+    )
 
-volatility = monthly["Sales"].std() / monthly["Sales"].mean()
+    if not loss_monthly.empty:
+        loss_monthly["Loss"] = loss_monthly["Profit"].abs()
+        st.line_chart(loss_monthly["Loss"])
 
-if volatility > 0.5:
-    st.warning("⚠️ High volatility → unstable demand pattern.")
-else:
-    st.success("✅ Stable demand pattern.")
-# =====================================================
-# 📉 LOSS TREND ANALYSIS (CRITICAL ADDITION)
-# =====================================================
+        latest_loss = loss_monthly["Loss"].iloc[-1]
+        avg_loss = loss_monthly["Loss"].mean()
 
-st.markdown("### 📉 Loss Trend Over Time")
+        if latest_loss > avg_loss:
+            st.warning("Loss increasing.")
+        else:
+            st.success("Loss improving.")
 
-loss_monthly = (
-    loss_df.set_index("Order.Date")
-    .resample("MS")
-    .agg({"Profit": "sum"})
-)
-
-# Convert to positive for readability
-loss_monthly["Loss"] = loss_monthly["Profit"].abs()
-
-st.line_chart(loss_monthly["Loss"])
-
-# =====================================================
-# 🧠 LOSS INSIGHT
-# =====================================================
-
-latest_loss = loss_monthly["Loss"].iloc[-1]
-avg_loss = loss_monthly["Loss"].mean()
-
-st.markdown("### 🧠 Loss Insights")
-
-if latest_loss > avg_loss:
-    st.warning("⚠️ Recent losses are higher than average → risk increasing.")
-else:
-    st.success("✅ Loss trend is improving over time.")
-
-st.write(f"""
-- 📊 Average Monthly Loss: **{avg_loss:,.0f}**  
-- 📉 Latest Month Loss: **{latest_loss:,.0f}**
-""")
+st.markdown("---")
 
 # =====================================================
 # 📊 BUSINESS DRIVERS
@@ -246,26 +204,14 @@ st.plotly_chart(fig, use_container_width=True)
 st.markdown("---")
 
 # =====================================================
-# 🧠 PRIORITY ENGINE (REAL BUSINESS PRIORITY)
+# 🧠 PRIORITY MATRIX
 # =====================================================
 st.markdown("## 🧠 Action Priority Matrix")
 
 priority_df = pd.DataFrame([
-    {
-        "Area": "Profit Margin",
-        "Score": max(0, 100 - margin),
-        "Impact": "Pricing / Cost Structure"
-    },
-    {
-        "Area": "Loss Leakage",
-        "Score": loss_ratio * 100,
-        "Impact": "Product Portfolio Optimization"
-    },
-    {
-        "Area": "Growth Stability",
-        "Score": abs(growth),
-        "Impact": "Demand / Market Strategy"
-    }
+    {"Area": "Profit Margin", "Score": max(0, 100 - margin)},
+    {"Area": "Loss Leakage", "Score": loss_ratio * 100},
+    {"Area": "Growth Stability", "Score": abs(growth)}
 ]).sort_values("Score", ascending=False)
 
 st.dataframe(priority_df)
@@ -273,37 +219,33 @@ st.dataframe(priority_df)
 st.markdown("---")
 
 # =====================================================
-# 📊 80/20 RULE
+# 📊 80/20 ANALYSIS
 # =====================================================
-st.markdown("## 📊 Business Concentration (80/20 Rule)")
+st.markdown("## 📊 Business Concentration")
 
-top_region = (df.groupby("Region")["Sales"].sum().nlargest(3).sum() /
-              df["Sales"].sum()) * 100
+top_region = (df.groupby("Region")["Sales"].sum().nlargest(3).sum() / sales) * 100
+top_category = (df.groupby("Category")["Profit"].sum().nlargest(2).sum() / profit) * 100 if profit != 0 else 0
 
-top_category = (df.groupby("Category")["Profit"].sum().nlargest(2).sum() /
-                df["Profit"].sum()) * 100
-
-st.write(f"Top 3 regions contribute **{top_region:.2f}% of revenue**")
-st.write(f"Top 2 categories contribute **{top_category:.2f}% of profit**")
+st.write(f"Top 3 regions → {top_region:.2f}% revenue")
+st.write(f"Top 2 categories → {top_category:.2f}% profit")
 
 st.markdown("---")
 
 # =====================================================
 # 📌 RECOMMENDATIONS
 # =====================================================
-st.markdown("## 📌 Strategic Recommendations")
+st.markdown("## 📌 Recommendations")
 
 if margin < 15:
-    st.write("🔴 Improve pricing & discount control")
+    st.write("🔴 Improve pricing")
 
-if len(loss_df) > 0:
-    st.write("🔴 Restructure loss-making products")
+if not loss_df.empty:
+    st.write("🔴 Fix loss-making products")
 
 if growth < 0:
-    st.write("🔴 Fix declining demand trend")
+    st.write("🔴 Improve demand strategy")
 
-st.write("🟢 Focus on high-margin categories")
-st.write("🟢 Strengthen strong-performing regions")
+st.write("🟢 Focus on high-margin segments")
 
 st.markdown("---")
 
@@ -317,4 +259,4 @@ st.download_button(
     mime="text/csv"
 )
 
-st.caption("🚀 PwC-Level Executive Analytics Dashboard")
+st.caption("🚀 Final Executive Dashboard")
