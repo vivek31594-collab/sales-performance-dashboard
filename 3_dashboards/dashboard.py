@@ -278,3 +278,10 @@ st.download_button(
 )
 
 st.caption("🚀 PwC-Level Executive Sales Intelligence Dashboard")
+st.markdown("## 📌 Final Executive Summary")
+
+st.info(f"""
+Overall, the business shows a revenue of {total_sales:,.0f} with a profit of {total_profit:,.0f}.  
+Key risk areas include loss-making products and fluctuating monthly performance.  
+Primary recommendation is to optimize pricing and reduce low-margin segments.
+""")
