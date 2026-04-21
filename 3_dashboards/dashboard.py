@@ -124,9 +124,22 @@ st.markdown("## 📈 Business Trend Intelligence")
 monthly["Sales_Growth"] = monthly["Sales"].pct_change() * 100
 monthly["Profit_Growth"] = monthly["Profit"].pct_change() * 100
 
-st.line_chart(monthly[["Sales", "Profit"]])
+fig = px.line(
+    monthly.reset_index(),
+    x="Order.Date",
+    y=["Sales", "Profit"],
+    title="Sales vs Profit Trend",
+    markers=True
+)
 
-# Safe extraction
+fig.update_layout(
+    xaxis_title="Month",
+    yaxis_title="Value",
+    legend_title="Metric"
+)
+
+st.plotly_chart(fig, use_container_width=True)
+
 if not monthly.empty:
     peak_month = monthly["Sales"].idxmax().strftime("%B %Y")
     low_month = monthly["Sales"].idxmin().strftime("%B %Y")
@@ -152,7 +165,7 @@ if not monthly.empty:
 st.markdown("---")
 
 # =====================================================
-# ⚠️ LOSS ANALYSIS (SAFE VERSION)
+# ⚠️ LOSS ANALYSIS (FIXED PROPERLY)
 # =====================================================
 st.markdown("## ⚠️ Profit Leakage Analysis")
 
@@ -164,7 +177,6 @@ else:
 
     st.write(f"Total Loss Impact: **{loss_impact:,.0f}**")
 
-    # SAFE LOSS TREND
     loss_monthly = (
         loss_df.set_index("Order.Date")
         .resample("MS")
@@ -173,7 +185,17 @@ else:
 
     if not loss_monthly.empty:
         loss_monthly["Loss"] = loss_monthly["Profit"].abs()
-        st.line_chart(loss_monthly["Loss"])
+
+        # ✅ FIXED PLOTLY INTEGRATION
+        fig_loss = px.line(
+            loss_monthly.reset_index(),
+            x="Order.Date",
+            y="Loss",
+            title="Loss Trend Over Time",
+            markers=True
+        )
+
+        st.plotly_chart(fig_loss, use_container_width=True)
 
         latest_loss = loss_monthly["Loss"].iloc[-1]
         avg_loss = loss_monthly["Loss"].mean()
