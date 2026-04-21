@@ -42,7 +42,7 @@ def load_data():
 df = load_data().sort_values("Order.Date")
 
 # =====================================================
-# 📊 MONTHLY TREND (SINGLE SOURCE)
+# 📊 MONTHLY TREND
 # =====================================================
 monthly = (
     df.set_index("Order.Date")
@@ -117,7 +117,7 @@ for i, ins in enumerate(insights, 1):
 st.markdown("---")
 
 # =====================================================
-# 📈 TREND ANALYSIS (FINAL)
+# 📈 TREND ANALYSIS
 # =====================================================
 st.markdown("## 📈 Business Trend Intelligence")
 
@@ -150,22 +150,10 @@ if not monthly.empty:
     - 📊 Avg Monthly Sales: **{monthly['Sales'].mean():,.0f}**
     """)
 
-    latest_sales_growth = monthly["Sales_Growth"].iloc[-1]
-    latest_profit_growth = monthly["Profit_Growth"].iloc[-1]
-
-    if latest_sales_growth > 0 and latest_profit_growth > 0:
-        st.success("Growth in both sales and profit.")
-    elif latest_sales_growth > 0 and latest_profit_growth < 0:
-        st.warning("Sales up but profit down → margin issue.")
-    elif latest_sales_growth < 0 and latest_profit_growth < 0:
-        st.error("Both declining → demand issue.")
-    else:
-        st.info("Mixed trend.")
-
 st.markdown("---")
 
 # =====================================================
-# ⚠️ LOSS ANALYSIS (FIXED PROPERLY)
+# ⚠️ LOSS ANALYSIS (FINAL UPGRADE)
 # =====================================================
 st.markdown("## ⚠️ Profit Leakage Analysis")
 
@@ -177,6 +165,7 @@ else:
 
     st.write(f"Total Loss Impact: **{loss_impact:,.0f}**")
 
+    # 📊 LOSS TREND
     loss_monthly = (
         loss_df.set_index("Order.Date")
         .resample("MS")
@@ -186,7 +175,6 @@ else:
     if not loss_monthly.empty:
         loss_monthly["Loss"] = loss_monthly["Profit"].abs()
 
-        # ✅ FIXED PLOTLY INTEGRATION
         fig_loss = px.line(
             loss_monthly.reset_index(),
             x="Order.Date",
@@ -197,13 +185,25 @@ else:
 
         st.plotly_chart(fig_loss, use_container_width=True)
 
-        latest_loss = loss_monthly["Loss"].iloc[-1]
-        avg_loss = loss_monthly["Loss"].mean()
+    # =====================================================
+    # 🆕 TOP LOSS PRODUCTS TABLE (IMPORTANT UPGRADE)
+    # =====================================================
+    st.markdown("### 📉 Top Loss-Making Products (Impact Analysis)")
 
-        if latest_loss > avg_loss:
-            st.warning("Loss increasing.")
-        else:
-            st.success("Loss improving.")
+    loss_table = (
+        loss_df.groupby("Product.Name")["Profit"]
+        .sum()
+        .reset_index()
+        .sort_values(by="Profit")
+        .head(10)
+    )
+
+    loss_table["Loss"] = loss_table["Profit"].abs()
+    loss_table["% Impact"] = (loss_table["Loss"] / loss_impact) * 100
+
+    loss_table = loss_table[["Product.Name", "Loss", "% Impact"]]
+
+    st.dataframe(loss_table)
 
 st.markdown("---")
 
