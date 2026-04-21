@@ -7,7 +7,7 @@ import plotly.express as px
 import os
 
 # =====================================================
-# ⚙️ PAGE CONFIG (MUST BE FIRST)
+# ⚙️ PAGE CONFIG (FIRST STREAMLIT COMMAND)
 # =====================================================
 st.set_page_config(
     page_title="Executive Sales Intelligence System",
@@ -30,13 +30,13 @@ def load_data():
 
     df = pd.read_csv(file_path, encoding="cp1252", low_memory=False)
 
+    # Date handling
     df["Order.Date"] = pd.to_datetime(df["Order.Date"], errors="coerce")
     df = df.dropna(subset=["Order.Date"])
 
+    # Numeric cleanup
     for col in ["Sales", "Profit", "Discount"]:
         df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
-
-    df["Year_Month"] = df["Order.Date"].dt.to_period("M").astype(str)
 
     return df
 
@@ -65,22 +65,22 @@ c1.metric("💰 Total Sales", f"{total_sales:,.0f}")
 c2.metric("📈 Total Profit", f"{total_profit:,.0f}")
 c3.metric("📊 Profit Margin", f"{profit_margin:.2f}%")
 
-# =====================================================
-# ⚠️ LOSS ANALYSIS (GLOBAL)
-# =====================================================
-loss_df = df[df["Profit"] < 0]
-loss_impact = loss_df["Profit"].sum()
-
 st.markdown("""
 ### 🔎 Key Business Insights
-- 📊 Sales show strong overall performance
-- 📉 Profitability varies significantly across segments
-- ⚠️ Loss-making products require immediate attention
+- 📊 Strong revenue performance overall
+- 📉 Profitability varies across segments
+- ⚠️ Certain products create profit leakage
 """)
 
 st.markdown("---")
 
-st.markdown("## ⚠️ Loss-Making Products Analysis")
+# =====================================================
+# ⚠️ LOSS ANALYSIS
+# =====================================================
+loss_df = df[df["Profit"] < 0]
+loss_impact = loss_df["Profit"].sum()
+
+st.markdown("## ⚠️ Loss-Making Products")
 
 top_loss = loss_df.groupby("Product.Name")["Profit"].sum().sort_values().head(10)
 st.bar_chart(top_loss)
@@ -90,51 +90,52 @@ st.markdown(f"### Total Loss Impact: {loss_impact:,.0f}")
 st.markdown("---")
 
 # =====================================================
-# 📈 TREND ANALYSIS
+# 📈 FIXED TREND ANALYSIS (IMPORTANT FIX 🔥)
 # =====================================================
-st.markdown("## 📈 Sales & Profit Trend Analysis")
+st.markdown("## 📈 Monthly Sales & Profit Trend (Corrected)")
 
-monthly_sales = df.groupby("Year_Month")["Sales"].sum()
-monthly_profit = df.groupby("Year_Month")["Profit"].sum()
+# Proper time-based grouping (FIXED)
+monthly_trend = df.groupby(pd.Grouper(key="Order.Date", freq="M"))[["Sales", "Profit"]].sum()
 
-st.markdown("### 📊 Monthly Sales Trend")
-st.line_chart(monthly_sales)
+# Make index readable
+monthly_trend.index = monthly_trend.index.strftime("%Y-%m")
 
-st.markdown("### 📊 Monthly Profit Trend")
-st.line_chart(monthly_profit)
+st.markdown("### 📊 Sales Trend")
+st.line_chart(monthly_trend["Sales"])
+
+st.markdown("### 📊 Profit Trend")
+st.line_chart(monthly_trend["Profit"])
 
 # =====================================================
-# 🧠 PWc INSIGHT ENGINE (NEW UPGRADE 🔥)
+# 🧠 PWc INSIGHT ENGINE
 # =====================================================
 st.markdown("## 🧠 Executive AI Insights (Consulting View)")
 
 insights = []
 
-# Profitability insight
+# Profitability
 if total_sales > 0:
     margin_check = (total_profit / total_sales) * 100
-
     if margin_check < 10:
-        insights.append("⚠️ Low profitability detected — cost structure or pricing needs optimization.")
+        insights.append("⚠️ Low profitability — pricing/cost structure issue.")
     else:
-        insights.append("✅ Healthy profit margin indicates stable pricing strategy.")
+        insights.append("✅ Healthy profitability maintained.")
 
-# Growth insight
-growth = monthly_sales.pct_change().iloc[-1] * 100 if len(monthly_sales) > 1 else 0
+# Growth
+growth = monthly_trend["Sales"].pct_change().iloc[-1] * 100 if len(monthly_trend) > 1 else 0
 
 if growth < 0:
-    insights.append("📉 Negative growth trend suggests demand slowdown or seasonality impact.")
+    insights.append("📉 Declining sales trend detected.")
 else:
-    insights.append("📈 Positive growth trend indicates improving business momentum.")
+    insights.append("📈 Positive growth momentum observed.")
 
-# Loss impact insight
+# Loss impact
 if len(loss_df) > 0:
     if abs(loss_impact) > total_profit * 0.3:
-        insights.append("🚨 High profit leakage detected from loss-making products.")
+        insights.append("🚨 High profit leakage from loss-making products.")
     else:
-        insights.append("⚠️ Limited but important loss-making segments identified.")
+        insights.append("⚠️ Limited but notable loss-making segments exist.")
 
-# Display insights
 for i, ins in enumerate(insights, 1):
     st.write(f"{i}. {ins}")
 
@@ -183,8 +184,9 @@ orders = filtered_df["Order.ID"].nunique()
 aov = sales / orders if orders else 0
 margin = (profit / sales * 100) if sales else 0
 
-monthly = filtered_df.groupby("Year_Month")["Sales"].sum().reset_index()
-growth_filtered = monthly["Sales"].pct_change().iloc[-1] * 100 if len(monthly) > 1 else 0
+monthly_filtered = filtered_df.groupby(pd.Grouper(key="Order.Date", freq="M"))["Sales"].sum()
+
+growth_filtered = monthly_filtered.pct_change().iloc[-1] * 100 if len(monthly_filtered) > 1 else 0
 
 st.subheader("📊 Live KPI Dashboard")
 
@@ -198,21 +200,15 @@ c5.metric("Margin", f"{margin:.2f}%")
 st.markdown("---")
 
 # =====================================================
-# 📈 VISUALS
-# =====================================================
-fig1 = px.line(monthly, x="Year_Month", y="Sales", markers=True, title="Monthly Sales Trend")
-st.plotly_chart(fig1, use_container_width=True)
-
-# =====================================================
-# 📊 REGION ANALYSIS
+# 📈 REGION ANALYSIS
 # =====================================================
 st.subheader("📊 Sales by Region")
 
 region_sales = filtered_df.groupby("Region")["Sales"].sum().sort_values()
 
-fig2, ax2 = plt.subplots(figsize=(10,5))
-sns.barplot(x=region_sales.values, y=region_sales.index, ax=ax2)
-st.pyplot(fig2)
+fig1, ax1 = plt.subplots(figsize=(10,5))
+sns.barplot(x=region_sales.values, y=region_sales.index, ax=ax1)
+st.pyplot(fig1)
 
 # =====================================================
 # 📊 SUB-CATEGORY PROFIT
@@ -221,9 +217,9 @@ st.subheader("📊 Profit by Sub-Category")
 
 subcat_profit = filtered_df.groupby("Sub.Category")["Profit"].sum().sort_values()
 
-fig3, ax3 = plt.subplots(figsize=(12,6))
-sns.barplot(x=subcat_profit.values, y=subcat_profit.index, ax=ax3)
-st.pyplot(fig3)
+fig2, ax2 = plt.subplots(figsize=(12,6))
+sns.barplot(x=subcat_profit.values, y=subcat_profit.index, ax=ax2)
+st.pyplot(fig2)
 
 # =====================================================
 # 📦 TOP PRODUCTS
@@ -232,9 +228,9 @@ st.subheader("📦 Top Products")
 
 top_products = filtered_df.groupby("Product.Name")["Sales"].sum().sort_values(ascending=False).head(10)
 
-fig4, ax4 = plt.subplots(figsize=(10,5))
-sns.barplot(x=top_products.values, y=top_products.index, ax=ax4)
-st.pyplot(fig4)
+fig3, ax3 = plt.subplots(figsize=(10,5))
+sns.barplot(x=top_products.values, y=top_products.index, ax=ax3)
+st.pyplot(fig3)
 
 # =====================================================
 # 🚨 LOSS TRANSACTIONS
@@ -262,10 +258,10 @@ if growth_filtered < 0:
 # =====================================================
 st.markdown("## 📌 Business Recommendations")
 
-st.write("🔴 Reduce focus on loss-making products immediately.")
+st.write("🔴 Reduce focus on loss-making products.")
 st.write("📊 Optimize pricing and discount strategy.")
-st.write("🚚 Improve logistics cost efficiency.")
-st.write("🎯 Focus on high-profit categories.")
+st.write("🚚 Improve logistics efficiency.")
+st.write("🎯 Focus on high-margin categories.")
 
 # =====================================================
 # 📥 DOWNLOAD
@@ -278,10 +274,3 @@ st.download_button(
 )
 
 st.caption("🚀 PwC-Level Executive Sales Intelligence Dashboard")
-st.markdown("## 📌 Final Executive Summary")
-
-st.info(f"""
-Overall, the business shows a revenue of {total_sales:,.0f} with a profit of {total_profit:,.0f}.  
-Key risk areas include loss-making products and fluctuating monthly performance.  
-Primary recommendation is to optimize pricing and reduce low-margin segments.
-""")
