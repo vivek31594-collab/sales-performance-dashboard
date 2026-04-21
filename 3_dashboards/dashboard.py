@@ -23,12 +23,11 @@ def load_data():
     file_path = "1_data/processed/cleanedsales.csv"
 
     if not os.path.exists(file_path):
-        st.error("❌ Data file not found. Check GitHub repo structure.")
+        st.error("❌ Data file not found in repo structure.")
         st.stop()
 
     df = pd.read_csv(file_path, encoding="cp1252", low_memory=False)
 
-    # CLEANING
     df.columns = df.columns.str.strip().str.replace(".", "_", regex=False)
 
     df["Order_Date"] = pd.to_datetime(df["Order_Date"], errors="coerce")
@@ -40,12 +39,9 @@ def load_data():
     df["Sales"] = df["Sales"].fillna(0)
     df["Profit"] = df["Profit"].fillna(0)
 
-    # FEATURE ENGINEERING
-    df["Profit_Margin"] = np.where(
-        df["Sales"] > 0,
-        (df["Profit"] / df["Sales"]) * 100,
-        0
-    )
+    df["Profit_Margin"] = np.where(df["Sales"] > 0,
+                                   (df["Profit"] / df["Sales"]) * 100,
+                                   0)
 
     df["YearMonth"] = df["Order_Date"].dt.to_period("M").astype(str)
 
@@ -53,6 +49,8 @@ def load_data():
 
 
 df = load_data()
+
+sns.set_style("whitegrid")
 
 # =====================================================
 # 🧭 TITLE
@@ -114,7 +112,7 @@ filtered_df = df[
 ]
 
 if filtered_df.empty:
-    st.warning("⚠️ No data available for selected filters")
+    st.warning("⚠️ No data for selected filters")
     st.stop()
 
 # =====================================================
@@ -142,54 +140,136 @@ c5.metric("Margin", f"{margin:.2f}%")
 st.markdown("---")
 
 # =====================================================
-# 📈 PLOTLY TREND
+# 📈 SALES TREND
 # =====================================================
-fig = px.line(
-    monthly,
-    x="YearMonth",
-    y="Sales",
-    title="📈 Monthly Sales Trend",
-    markers=True
-)
-
-st.plotly_chart(fig, width="stretch")
+fig = px.line(monthly, x="YearMonth", y="Sales", markers=True)
+st.plotly_chart(fig, use_container_width=True)
 
 # =====================================================
-# 📉 SEABORN ANALYSIS
-# =====================================================
-st.subheader("📉 Sales vs Profit Analysis")
-
-sns.set_style("whitegrid")
-
-fig2, ax = plt.subplots(figsize=(8, 5))
-
-sns.scatterplot(
-    data=filtered_df,
-    x="Sales",
-    y="Profit",
-    alpha=0.6,
-    ax=ax
-)
-
-sns.regplot(
-    data=filtered_df,
-    x="Sales",
-    y="Profit",
-    scatter=False,
-    ax=ax
-)
-
-ax.set_title("Sales vs Profit Relationship")
-
-st.pyplot(fig2)
-
-# =====================================================
-# 📊 REGION ANALYSIS
+# 📊 SALES BY REGION
 # =====================================================
 st.subheader("📊 Sales by Region")
 
-region_sales = filtered_df.groupby("Region")["Sales"].sum().reset_index()
-st.dataframe(region_sales)
+region_sales = filtered_df.groupby("Region")["Sales"].sum().sort_values()
+
+fig1, ax1 = plt.subplots(figsize=(10,5))
+
+sns.barplot(
+    x=region_sales.values,
+    y=region_sales.index,
+    hue=region_sales.index,
+    palette="viridis",
+    legend=False,
+    ax=ax1
+)
+
+ax1.set_title("Sales by Region")
+ax1.set_xlabel("Sales")
+ax1.set_ylabel("")
+sns.despine()
+st.pyplot(fig1)
+
+# =====================================================
+# 📊 PROFIT BY SUB-CATEGORY
+# =====================================================
+st.subheader("📊 Profit by Sub-Category")
+
+subcat_profit = filtered_df.groupby("Sub.Category")["Profit"].sum().sort_values()
+
+fig2, ax2 = plt.subplots(figsize=(12,6))
+
+sns.barplot(
+    x=subcat_profit.values,
+    y=subcat_profit.index,
+    hue=subcat_profit.index,
+    palette="coolwarm",
+    legend=False,
+    ax=ax2
+)
+
+for i, v in enumerate(subcat_profit.values):
+    ax2.text(v + (max(subcat_profit.values)*0.01), i, f"{v:,.0f}", va='center', fontsize=9)
+
+ax2.set_title("Profit by Sub-Category")
+ax2.set_xlabel("Profit")
+ax2.set_ylabel("")
+sns.despine()
+st.pyplot(fig2)
+
+# =====================================================
+# 📊 SALES vs PROFIT
+# =====================================================
+st.subheader("📊 Sales vs Profit Relationship")
+
+fig3, ax3 = plt.subplots(figsize=(10,6))
+
+sns.scatterplot(data=filtered_df, x="Sales", y="Profit", alpha=0.6, ax=ax3)
+
+sns.regplot(data=filtered_df, x="Sales", y="Profit", scatter=False, ax=ax3)
+
+high_sales = filtered_df[filtered_df["Sales"] > 8000]
+
+sns.scatterplot(data=high_sales, x="Sales", y="Profit", color="red", s=80, label="High-value", ax=ax3)
+
+ax3.set_title("Sales vs Profit Relationship")
+ax3.legend()
+sns.despine()
+st.pyplot(fig3)
+
+# =====================================================
+# 📦 TOP PRODUCTS
+# =====================================================
+st.subheader("📦 Top 10 Products by Sales")
+
+top_products = filtered_df.groupby("Product_Name")["Sales"].sum().sort_values(ascending=False).head(10)
+
+fig4, ax4 = plt.subplots(figsize=(10,6))
+
+sns.barplot(
+    x=top_products.values,
+    y=top_products.index,
+    hue=top_products.index,
+    palette="Blues_r",
+    legend=False,
+    ax=ax4
+)
+
+ax4.set_title("Top 10 Products")
+sns.despine()
+st.pyplot(fig4)
+
+# =====================================================
+# 📉 PROFIT TREND
+# =====================================================
+st.subheader("📉 Monthly Profit Trend")
+
+profit_trend = filtered_df.groupby("YearMonth")["Profit"].sum().reset_index()
+
+fig5, ax5 = plt.subplots(figsize=(10,5))
+
+sns.lineplot(data=profit_trend, x="YearMonth", y="Profit", marker="o", ax=ax5)
+
+ax5.set_title("Profit Trend")
+plt.xticks(rotation=45)
+
+sns.despine()
+st.pyplot(fig5)
+
+# =====================================================
+# 🚨 DISCOUNT vs PROFIT
+# =====================================================
+st.subheader("🚨 Discount vs Profit Impact")
+
+fig6, ax6 = plt.subplots(figsize=(10,6))
+
+sns.scatterplot(data=filtered_df, x="Discount", y="Profit", alpha=0.6, ax=ax6)
+
+sns.regplot(data=filtered_df, x="Discount", y="Profit", scatter=False, ax=ax6)
+
+ax6.set_title("Discount vs Profit Relationship")
+
+sns.despine()
+st.pyplot(fig6)
 
 # =====================================================
 # 🚨 LOSS ANALYSIS
@@ -197,18 +277,10 @@ st.dataframe(region_sales)
 st.subheader("🚨 Loss Making Transactions")
 
 loss_df = filtered_df[filtered_df["Profit"] < 0]
+
 st.dataframe(loss_df[["Product_Name", "Sales", "Profit"]].head(10))
 
-st.warning(f"{len(loss_df)} loss transactions detected")
-
-# =====================================================
-# 🧠 INSIGHTS
-# =====================================================
-st.subheader("🧠 Key Insights")
-
-st.write("• High sales do not always result in high profit")
-st.write("• Regional performance varies significantly")
-st.write("• Loss-making transactions require attention")
+st.warning(f"{len(loss_df)} loss cases detected")
 
 # =====================================================
 # 📌 ACTIONS
@@ -216,28 +288,15 @@ st.write("• Loss-making transactions require attention")
 st.subheader("📌 Business Actions")
 
 if margin < 15:
-    st.write("• Improve pricing or reduce discount dependency")
+    st.write("• Improve pricing strategy")
 
 if len(loss_df) > 0:
-    st.write("• Investigate loss-making products")
+    st.write("• Fix loss-making products")
 
 if growth < 0:
-    st.write("• Implement sales recovery strategy")
-
-if margin >= 15 and len(loss_df) == 0:
-    st.success("✔ Business performance is stable")
-
-# =====================================================
-# 📥 EXPORT
-# =====================================================
-st.download_button(
-    "📥 Download Data",
-    filtered_df.to_csv(index=False),
-    "sales_data.csv",
-    mime="text/csv"
-)
+    st.write("• Sales recovery plan needed")
 
 # =====================================================
 # FOOTER
 # =====================================================
-st.caption("🚀 Production-Ready Executive Dashboard | Vivek Saha")
+st.caption("🚀 Executive Analytics Dashboard | Vivek Saha")
