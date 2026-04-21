@@ -130,21 +130,64 @@ for i, ins in enumerate(insights, 1):
 
 st.markdown("---")
 
+
 # =====================================================
-# 📈 TREND ANALYSIS (UPGRADED)
+# 📈 BUSINESS TREND INTELLIGENCE (FINAL FIX)
 # =====================================================
+
 st.markdown("## 📈 Business Trend Intelligence")
 
-st.line_chart(monthly["Sales"])
-st.line_chart(monthly["Profit"])
+monthly = (
+    df.set_index("Order.Date")
+    .resample("MS")
+    .agg({"Sales": "sum", "Profit": "sum"})
+    .sort_index()
+)
+
+monthly["Sales_Growth"] = monthly["Sales"].pct_change() * 100
+monthly["Profit_Growth"] = monthly["Profit"].pct_change() * 100
+
+# 📊 Combined Trend Chart (IMPORTANT UPGRADE)
+st.line_chart(monthly[["Sales", "Profit"]])
+
+# =====================================================
+# 🧠 BUSINESS INTERPRETATION (KEY FIX)
+# =====================================================
+
+latest_sales_growth = monthly["Sales_Growth"].iloc[-1]
+latest_profit_growth = monthly["Profit_Growth"].iloc[-1]
+
+peak_month = monthly["Sales"].idxmax().strftime("%B %Y")
+low_month = monthly["Sales"].idxmin().strftime("%B %Y")
+
+st.markdown("### 🧠 Trend Insights")
+
+# Growth logic
+if latest_sales_growth > 0 and latest_profit_growth > 0:
+    st.success("📈 Business is growing — both revenue and profit are increasing.")
+elif latest_sales_growth > 0 and latest_profit_growth < 0:
+    st.warning("⚠️ Sales increasing but profit falling → margin pressure detected.")
+elif latest_sales_growth < 0 and latest_profit_growth < 0:
+    st.error("📉 Both sales and profit declining → demand issue.")
+else:
+    st.info("📊 Mixed trend — requires deeper investigation.")
 
 st.write(f"""
-- 📌 Peak Sales Month: {monthly['Sales'].idxmax()}
-- 📉 Lowest Sales Month: {monthly['Sales'].idxmin()}
-- 📊 Average Monthly Sales: {monthly['Sales'].mean():,.0f}
+- 📈 Peak Month: **{peak_month}**  
+- 📉 Lowest Month: **{low_month}**  
+- 📊 Avg Monthly Sales: **{monthly['Sales'].mean():,.0f}**
 """)
 
-st.markdown("---")
+# =====================================================
+# ⚠️ VOLATILITY
+# =====================================================
+
+volatility = monthly["Sales"].std() / monthly["Sales"].mean()
+
+if volatility > 0.5:
+    st.warning("⚠️ High volatility → inconsistent demand pattern.")
+else:
+    st.success("✅ Stable demand pattern.")
 
 # =====================================================
 # ⚠️ LOSS ANALYSIS
